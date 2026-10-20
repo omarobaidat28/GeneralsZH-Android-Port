@@ -373,7 +373,7 @@ void DoCompressTest()
 
 	std::map<AsciiString, CompData> s_sizes;
 
-	std::map<AsciiString, MapMetaData>::const_iterator it = TheMapCache->begin();
+	auto it = TheMapCache->begin();
 	while (it != TheMapCache->end())
 	{
 		//if (it->second.m_isOfficial)

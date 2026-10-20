@@ -95,10 +95,16 @@ void NGMPGame::SyncWithLobby(LobbyEntry& lobby)
 	std::string correctedMapPath = std::format("{}{}", TheGlobalData->getPath_UserData().str(), lobby.map_path.c_str());
 	AsciiString asciiMapCustom(correctedMapPath.c_str());
 	//TheNGMPGame->setMap(asciiMap);
-	asciiMapOfficial.toLower();
-	asciiMapCustom.toLower();
-	std::map<AsciiString, MapMetaData>::iterator itOfficial = TheMapCache->find(asciiMapOfficial);
-	std::map<AsciiString, MapMetaData>::iterator itCustom = TheMapCache->find(asciiMapCustom);
+	// GeneralsX @bugfix Android port 21/10/2026 Canonical keys for both candidate forms. The
+	// strings arrive Windows-authored ("maps\X\X.map" or "{userData}maps\X\X.map" straight from
+	// the server); with byte-exact std::map keys, the custom form (and any playlist whose maps
+	// are loose files, e.g. the 1v1 pool) resolved to nothing on the Posix disk-scan keys, so
+	// QM/lobby matches fell through to the fallback and the map metadata (CRC/size/availability)
+	// was never set. Same fix family as the Allowable-maps list.
+	asciiMapOfficial = getMapCacheKey(asciiMapOfficial);
+	asciiMapCustom = getMapCacheKey(asciiMapCustom);
+	auto  itOfficial = TheMapCache->find(asciiMapOfficial);
+	auto  itCustom = TheMapCache->find(asciiMapCustom);
 
 	// is it official?
 

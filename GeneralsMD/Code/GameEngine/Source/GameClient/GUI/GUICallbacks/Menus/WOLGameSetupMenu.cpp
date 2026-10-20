@@ -2150,7 +2150,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 		AsciiString lowerMap = game->getMap();
 		//AsciiString lowerMap = customPref.getPreferredMap();
 		lowerMap.toLower();
-		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+		auto  it = TheMapCache->find(lowerMap);
 		if (it != TheMapCache->end())
 		{
 			hostSlot->setMapAvailability(TRUE);

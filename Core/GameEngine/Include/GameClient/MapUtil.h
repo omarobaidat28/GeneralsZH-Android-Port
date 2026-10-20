@@ -93,7 +93,23 @@ public:
 // TheSuperHackers @performance xezon 02/11/2025 Simplifies and improves the implementation of MapCache
 // to prevent expensive reoccurring redundant map cache reads.
 
-class MapCache : public std::map<AsciiString, MapMetaData>
+// GeneralsX @bugfix Android port 21/10/2026 Map path keys must match regardless of separator or
+// letter case. The keys arrive in two forms: Windows-authored strings (big-internal map entries
+// like "Maps\Defcon6\Defcon6.map" and QuickMatch playlist paths built as "maps\x\x.map") and Posix
+// disk listings (StdLocalFileSystem::getFileListInDirectory returns "Maps/X/X.map"). A plain
+// std::map is byte-exact, so a QuickMatch playlist made only of loose community-pack files looked
+// up nothing on Android -- the "Allowable maps" list was empty -- while the same data populated a
+// PC client, where Windows listings also produce backslash paths. The container now orders keys
+// through this comparator (case-insensitive, '\' and '/' treated equal), and both insertion
+// (MapUtil.cpp) and lookup (getMapCacheKey below) canonicalize the key so m_fileName and the INI
+// round-trip stay consistent; file OPEN is unaffected (fixFilenameFromWindowsPath already
+// resolves both styles).
+struct MapCacheKeyCompare
+{
+	Bool operator()(const AsciiString& lhs, const AsciiString& rhs) const;
+};
+
+class MapCache : public std::map<AsciiString, MapMetaData, MapCacheKeyCompare>
 {
 	typedef std::set<AsciiString> MapNameSet;
 
@@ -144,6 +160,12 @@ Image *getMapPreviewImage( AsciiString mapName );
 AsciiString getDefaultMap( Bool isMultiplayer );											/// Find a valid map
 AsciiString getDefaultOfficialMap();
 Bool isOfficialMap( AsciiString mapName );
+
+// GeneralsX @bugfix Android port 21/10/2026 Canonical form of a map cache key: lowercase with
+// forward slashes. Producers of map paths (QuickMatch playlists, lobby map_path, the INI cache
+// parser) call this before handing a path to the cache so the lookup and the stored m_fileName
+// agree with the disk-scan keys on every platform.
+AsciiString getMapCacheKey( AsciiString mapName );
 Bool parseMapPreviewChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
 void findDrawPositions( Int startX, Int startY, Int width, Int height, Region3D extent,
 															 ICoord2D *ul, ICoord2D *lr );

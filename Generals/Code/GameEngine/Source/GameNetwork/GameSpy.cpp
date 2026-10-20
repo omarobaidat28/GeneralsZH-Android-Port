@@ -1046,7 +1046,7 @@ void createRoomCallback(PEER peer, PEERBool success, PEERJoinResult result, Room
 		asciiMap = TheGlobalData->m_mapName;
 
 		asciiMap.toLower();
-		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
+		auto it = TheMapCache->find(asciiMap);
 		if (it != TheMapCache->end())
 		{
 			TheGameSpyGame->getSlot(0)->setMapAvailability(true);

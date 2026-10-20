@@ -30,6 +30,7 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #include <cstdint>
+#include <algorithm>
 
 #include "Common/crc.h"
 #include "Common/FileSystem.h"
@@ -343,6 +344,56 @@ void WaypointMap::update()
 
 const char *const MapCache::m_mapCacheName = "MapCache.ini";
 
+// GeneralsX @bugfix Android port 21/10/2026 ASCII-safe, locale-free canonicalization for map path
+// keys: fold letter case and treat the two copy/platform separator styles ('\','/') as equal.
+// Deliberately not std::tolower -- the paths in the cache are plain ASCII filenames, so the fold
+// must not depend on the C locale of the host this was compiled on.
+static const Char mapKeyCanonicalChar(Char c)
+{
+	if (c >= 'A' && c <= 'Z')
+		c = (Char)(c - 'A' + 'a');
+	if (c == '\\')
+		c = '/';
+	return c;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** GeneralsX @bugfix Android port 21/10/2026 The comparator behind MapCache: map path keys compare
+ case-insensitively, and '\' and '/' count as the same separator. See MapUtil.h for why. */
+//-------------------------------------------------------------------------------------------------
+Bool MapCacheKeyCompare::operator()(const AsciiString& lhs, const AsciiString& rhs) const
+{
+	Int lenL = lhs.getLength();
+	Int lenR = rhs.getLength();
+	Int lenMin = min(lenL, lenR);
+	for (Int i = 0; i < lenMin; ++i)
+	{
+		Char lc = mapKeyCanonicalChar(lhs.getCharAt(i));
+		Char rc = mapKeyCanonicalChar(rhs.getCharAt(i));
+		if (lc < rc)
+			return TRUE;
+		if (lc > rc)
+			return FALSE;
+	}
+	return lenL < lenR;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** GeneralsX @bugfix Android port 21/10/2026 Canonical map cache key: lowercase with forward
+ slashes. Producers of Windows-style paths (big-internal map entries, QuickMatch playlist
+ formatting, lobby map_path) hand their strings here before touching the cache, so lookups agree
+ with the Posix disk-scan keys on every platform. File OPEN is separate:
+ StdLocalFileSystem::fixFilenameFromWindowsPath already resolves either style. */
+//-------------------------------------------------------------------------------------------------
+AsciiString getMapCacheKey( AsciiString mapName )
+{
+	mapName.toLower();
+
+	std::string canonical = mapName.str();
+	std::replace(canonical.begin(), canonical.end(), '\\', '/');
+	return AsciiString(canonical.c_str());
+}
+
 AsciiString MapCache::getMapDir() const
 {
 	return "Maps";
@@ -362,6 +413,10 @@ AsciiString MapCache::getMapExtension() const
 
 void MapCache::writeCacheINI( const AsciiString &mapDir )
 {
+	// GeneralsX @bugfix Android port 21/10/2026 The dir decides which keys land in the INI; keys
+	// are canonical, so the prefix compare (below) must run in the same style.
+	const AsciiString mapDirKey = getMapCacheKey(mapDir);
+
 	AsciiString filepath = mapDir;
 	// GeneralsX @bugfix fbraz 06/05/2026 Use portable separator for host filesystem paths to avoid creating literal "\\" filenames on POSIX.
 	filepath.concat('/');
@@ -382,7 +437,7 @@ void MapCache::writeCacheINI( const AsciiString &mapDir )
 	MapCache::iterator it = begin();
 	for (; it != end(); ++it)
 	{
-		if (it->first.startsWithNoCase(mapDir.str()))
+		if (it->first.startsWithNoCase(mapDirKey.str()))
 		{
 			const MapMetaData &md = it->second;
 			fprintf(fp, "\nMapCache %s\n", AsciiStringToQuotedPrintable(it->first.str()).str());
@@ -491,12 +546,15 @@ void MapCache::updateCache()
 
 void MapCache::prepareUnseenMaps( const AsciiString &mapDir )
 {
+	// GeneralsX @bugfix Android port 21/10/2026 Prefix compare against canonical keys must use the
+	// dir in the same separator style ("Maps\\" would never match "maps/" keys on Posix).
+	const AsciiString mapDirKey = getMapCacheKey(mapDir);
 	MapCache::iterator it = begin();
 	for (; it != end(); ++it)
 	{
 		const AsciiString &mapName = it->first;
 
-		if (mapName.startsWithNoCase(mapDir.str()))
+		if (mapName.startsWithNoCase(mapDirKey.str()))
 		{
 			it->second.m_doesExist = FALSE;
 		}
@@ -507,6 +565,9 @@ Bool MapCache::clearUnseenMaps( const AsciiString &mapDir )
 {
 	Bool erasedSomething = FALSE;
 
+	// GeneralsX @bugfix Android port 21/10/2026 Same canonical-prefix rule as prepareUnseenMaps.
+	const AsciiString mapDirKey = getMapCacheKey(mapDir);
+
 	MapCache::iterator it = begin();
 	while (it != end())
 	{
@@ -516,7 +577,7 @@ Bool MapCache::clearUnseenMaps( const AsciiString &mapDir )
 		const AsciiString &mapName = it->first;
 		const MapMetaData &mapData = it->second;
 
-		if (mapName.startsWithNoCase(mapDir.str()) && !mapData.m_doesExist)
+		if (mapName.startsWithNoCase(mapDirKey.str()) && !mapData.m_doesExist)
 		{
 			erase(it);
 			erasedSomething = TRUE;
@@ -560,8 +621,10 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 	for (; filepathIt != filepathList.end(); ++filepathIt)
 	{
 		FileInfo fileInfo;
-		AsciiString filepathLower = *filepathIt;
-		filepathLower.toLower();
+		// GeneralsX @bugfix Android port 21/10/2026 Canonicalize the key: the Posix disk listing
+		// yields forward slashes, big-internal names carry backslashes -- one canonical form for
+		// every entry (see getMapCacheKey; the raw path is kept untouched for file IO below).
+		AsciiString filepathLower = getMapCacheKey(*filepathIt);
 
 		const char *szFilenameLower = findLastPathSeparator(filepathLower);
 		if (!szFilenameLower)
@@ -757,7 +820,9 @@ MapCache *TheMapCache = nullptr;
 
 Bool WouldMapTransfer( const AsciiString& mapName )
 {
-	return mapName.startsWithNoCase(TheMapCache->getUserMapDir());
+	// GeneralsX @bugfix Android port 21/10/2026 Both sides canonical keys, or the user-map prefix
+	// fails to match its own m_fileName on one separator style per platform.
+	return getMapCacheKey(mapName).startsWithNoCase(getMapCacheKey(TheMapCache->getUserMapDir()));
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -982,7 +1047,9 @@ Int populateMapListboxNoReset( GameWindow *listbox, Bool useSystemMaps, Bool isM
 		mapDir = TheGlobalData->getPath_UserData();
 		mapDir.concat(TheMapCache->getMapDir());
 	}
-	mapDir.toLower();
+	// GeneralsX @bugfix Android port 21/10/2026 Compared against canonical cache keys below
+	// (addMapToMapListbox's startsWithNoCase) -- same separator style or it matches nothing.
+	mapDir = getMapCacheKey(mapDir);
 
 	MapNameList mapNames;
 	MapDisplayToFileNameList fileNames;
@@ -1051,7 +1118,7 @@ Bool isValidMap( AsciiString mapName, Bool isMultiplayer )
 		return FALSE;
 	TheMapCache->updateCache();
 
-	mapName.toLower();
+	mapName = getMapCacheKey(mapName);
 	MapCache::iterator it = TheMapCache->find(mapName);
 	if (it != TheMapCache->end())
 	{
@@ -1109,7 +1176,7 @@ Bool isOfficialMap( AsciiString mapName )
 	if(!TheMapCache || mapName.isEmpty())
 		return FALSE;
 	TheMapCache->updateCache();
-	mapName.toLower();
+	mapName = getMapCacheKey(mapName);
 	MapCache::iterator it = TheMapCache->find(mapName);
 	if (it != TheMapCache->end())
 		return it->second.m_isOfficial;
@@ -1119,7 +1186,7 @@ Bool isOfficialMap( AsciiString mapName )
 
 const MapMetaData *MapCache::findMap(AsciiString mapName)
 {
-	mapName.toLower();
+	mapName = getMapCacheKey(mapName);
 	MapCache::iterator it = find(mapName);
 	if (it == end())
 		return nullptr;

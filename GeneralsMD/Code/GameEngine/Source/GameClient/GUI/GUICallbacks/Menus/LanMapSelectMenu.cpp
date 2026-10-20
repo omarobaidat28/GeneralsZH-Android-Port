@@ -377,7 +377,7 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 						asciiMap.translate( map );
 					TheLAN->GetMyGame()->setMap( asciiMap );
 					asciiMap.toLower();
-					std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
+					auto  it = TheMapCache->find(asciiMap);
 					if (it != TheMapCache->end())
 					{
 						TheLAN->GetMyGame()->getSlot(0)->setMapAvailability(true);

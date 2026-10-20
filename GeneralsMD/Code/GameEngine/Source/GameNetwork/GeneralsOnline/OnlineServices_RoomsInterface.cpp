@@ -1,5 +1,6 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameClient/GameText.h"
+#include "GameClient/MapUtil.h"
 #if defined(__ANDROID__) || defined(__linux__)
 #include <link.h>
 #endif
@@ -1274,7 +1275,10 @@ void WebSocket::Tick()
 												// basic info needed to join
 												LobbyEntry lobbyEntry;
 												lobbyEntry.lobbyID = mmEvent.lobby_id;
-												lobbyEntry.map_path = "Maps\\Alpine Assault\\Alpine Assault.map";
+												// GeneralsX @bugfix Android port 21/10/2026 Canonical key form
+												// (getMapCacheKey) so the placeholder resolves against the
+												// canonical cache keys like every other map path.
+												lobbyEntry.map_path = getMapCacheKey(AsciiString("Maps\\Alpine Assault\\Alpine Assault.map")).str();
 
 												pLobbyInterface->JoinLobby(lobbyEntry, std::string());
 

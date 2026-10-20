@@ -640,7 +640,10 @@ void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> 
 				// correct map path
 				if (lobbyEntry.map_official)
 				{
-					lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
+					// GeneralsX @bugfix Android port 21/10/2026 Canonical key (see getMapCacheKey):
+					// a Windows-authored "maps\X\X.map" string and the Posix disk-scan cache keys
+					// must agree, or a room whose map is a loose-file map resolves to nothing.
+					lobbyEntry.map_path = getMapCacheKey(AsciiString(std::format("maps\\{}", lobbyEntry.map_path.c_str()).c_str())).str();
 				}
 				else
 				{
@@ -963,7 +966,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 						// correct map path
 						if (lobbyEntry.map_official)
 						{
-							lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
+							// GeneralsX @bugfix Android port 21/10/2026 Canonical key (see getMapCacheKey),
+							// same reason as the other lobby-list site.
+							lobbyEntry.map_path = getMapCacheKey(AsciiString(std::format("maps\\{}", lobbyEntry.map_path.c_str()).c_str())).str();
 						}
 						else
 						{

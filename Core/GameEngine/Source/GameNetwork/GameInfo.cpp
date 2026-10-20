@@ -626,7 +626,7 @@ void GameInfo::setMapCRC( UnsignedInt mapCRC )
 		AsciiString lowerMap = m_mapName;
 		lowerMap.toLower();
 		//DEBUG_LOG(("GameInfo::setMapCRC - looking for map file \"%s\" in the map cache", lowerMap.str()));
-		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+		auto it = TheMapCache->find(lowerMap);
 		if (it == TheMapCache->end())
 		{
 			/*
@@ -665,7 +665,7 @@ void GameInfo::setMapSize( UnsignedInt mapSize )
 		//TheMapCache->updateCache();
 		AsciiString lowerMap = m_mapName;
 		lowerMap.toLower();
-		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+		auto it = TheMapCache->find(lowerMap);
 		if (it == TheMapCache->end())
 		{
 			DEBUG_LOG(("GameInfo::setMapSize - could not find map file."));
@@ -1567,7 +1567,7 @@ Bool ParseAsciiStringToGameInfo(GameInfo *game, AsciiString options)
 			const MapMetaData* crcMatch = nullptr;
 			const MapMetaData* exactMatch = nullptr;
 
-			for (std::map<AsciiString, MapMetaData>::const_iterator it = TheMapCache->begin(); it != TheMapCache->end(); ++it)
+			for (auto it = TheMapCache->begin(); it != TheMapCache->end(); ++it)
 			{
 				if (it->second.m_CRC != mapCRC)
 				{

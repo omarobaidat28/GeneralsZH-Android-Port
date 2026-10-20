@@ -462,7 +462,7 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 
 					TheNGMPGame->setMap(asciiMap);
 					asciiMap.toLower();
-					std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
+					auto  it = TheMapCache->find(asciiMap);
 					if (it != TheMapCache->end())
 					{
 						TheNGMPGame->getGameSpySlot(0)->setMapAvailability(TRUE);

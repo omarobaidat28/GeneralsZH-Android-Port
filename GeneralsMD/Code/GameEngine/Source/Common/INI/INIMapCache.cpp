@@ -214,8 +214,11 @@ void INI::parseMapCacheDefinition( INI* ini )
 
 	if(TheMapCache && !md.m_displayName.isEmpty())
 	{
-		AsciiString lowerName = name;
-		lowerName.toLower();
+		// GeneralsX @bugfix Android port 21/10/2026 Store INI round-trip keys canonical (lowercase,
+		// forward slashes) so they agree with the disk-scan entries and the QuickMatch/lobby
+		// lookups on every platform. A pre-fix MapCache.ini carries backslash keys; the separator-
+		// tolerant MapCache comparator makes those equivalent until the scan refreshes the file.
+		AsciiString lowerName = getMapCacheKey(name);
 		md.m_fileName = lowerName;
 //		DEBUG_LOG(("INI::parseMapCacheDefinition - adding %s to map cache", lowerName.str()));
 		(*TheMapCache)[lowerName] = md;

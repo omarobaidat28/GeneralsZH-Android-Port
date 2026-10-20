@@ -469,7 +469,7 @@ static void startPressed()
 	Int playerCount = TheSkirmishGameInfo->getNumPlayers();
 	AsciiString lowerMap = TheSkirmishGameInfo->getMap();
 	lowerMap.toLower();
-	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+	auto  it = TheMapCache->find(lowerMap);
 	if (it == TheMapCache->end())
 	{
 		buttonPushed = FALSE;
@@ -675,7 +675,7 @@ void positionStartSpots( AsciiString mapName, GameWindow *buttonMapStartPosition
 {
 	AsciiString lowerMap = mapName;
 	lowerMap.toLower();
-	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+	auto  it = TheMapCache->find(lowerMap);
 	if (it == TheMapCache->end())
 	{
 		mapWindow->winSetUserData(nullptr);
@@ -787,7 +787,7 @@ void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[
 {
 	AsciiString lowerMap = myGame->getMap();
 	lowerMap.toLower();
-	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+	auto  it = TheMapCache->find(lowerMap);
 	if (it == TheMapCache->end())
 	{
 		for (Int i = 0; i < MAX_SLOTS; ++i)
@@ -1158,7 +1158,7 @@ void skirmishUpdateSlotList()
 
 	  AsciiString lowerMap = TheSkirmishGameInfo->getMap();
 	  lowerMap.toLower();
-	  std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+		auto it = TheMapCache->find(lowerMap);
 	  if (it != TheMapCache->end())
 	  {
       GadgetStaticTextSetText(textEntryMapDisplay, it->second.m_displayName);
@@ -1340,7 +1340,7 @@ void SkirmishGameOptionsMenuInit( WindowLayout *layout, void *userData )
 
 	AsciiString lowerMap = prefs.getPreferredMap();
 	lowerMap.toLower();
-	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+	auto  it = TheMapCache->find(lowerMap);
 	if (it != TheMapCache->end())
 	{
     GadgetStaticTextSetText(textEntryMapDisplay, it->second.m_displayName);

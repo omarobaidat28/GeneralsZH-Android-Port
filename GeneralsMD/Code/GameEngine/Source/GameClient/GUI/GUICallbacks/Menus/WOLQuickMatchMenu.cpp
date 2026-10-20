@@ -682,9 +682,36 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 						correctedMapPath = std::format("maps\\{}\\{}.map", mapEntry.Path, mapEntry.Path);
 					}
 
-					AsciiString mapPath = correctedMapPath.c_str();
-					mapPath.toLower();
+					AsciiString mapPath = getMapCacheKey(correctedMapPath.c_str());
 					maps.push_back(mapPath);
+				}
+
+				// GeneralsX @bugfix Android port 21/10/2026 Measure the playlist against this
+				// install's map cache. Before the path canonicalization fix, a playlist made
+				// only of loose community-pack files (the whole 1v1 "Random Armies" pool) counted
+				// ZERO of its maps here on Android -- the Allowable-maps list was empty and
+				// matchmaking could not start -- while a PC client showed all of them, because
+				// Windows listings produce the same backslash style the playlist strings use.
+				// This line answers "did the data arrive, or is it missing?" in one log line.
+				{
+					Int servedCount = 0;
+					Int foundCount = 0;
+					for (const AsciiString& candidate : maps)
+					{
+						++servedCount;
+						if (TheMapCache->findMap(candidate) != nullptr)
+							++foundCount;
+					}
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[QMMAPS] playlist '%hs' (id=%u, minplayers=%d): %d of %d playlist maps present in the local MapCache",
+						plEntry.Name.c_str(), (unsigned)plEntry.PlaylistID, plEntry.MinPlayers, foundCount, servedCount);
+					if (servedCount > 0 && foundCount < servedCount)
+					{
+						for (const AsciiString& candidate : maps)
+						{
+							if (TheMapCache->findMap(candidate) == nullptr)
+								NetworkLog(ELogVerbosity::LOG_DEBUG, "[QMMAPS]   missing: '%hs'", candidate.str());
+						}
+					}
 				}
 			}
 			else
@@ -786,7 +813,10 @@ static void saveQuickMatchOptions()
 				{
 					// format into game format (Maps\\name\\name.map)
 					std::string correctedMapPath = std::format("maps\\{}\\{}.map", mapEntry.Path, mapEntry.Path);
-					maps.push_back(AsciiString(correctedMapPath.c_str()));
+					// GeneralsX @bugfix Android port 21/10/2026 Same canonical key as the listbox
+					// build (getMapCacheKey): the stored selections must string-match across
+					// restarts and match what the playlist resolution looks up.
+					maps.push_back(getMapCacheKey(correctedMapPath.c_str()));
 				}
 
 				// ladder

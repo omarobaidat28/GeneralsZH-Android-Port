@@ -783,7 +783,7 @@ void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 		game->setMap( pref.getPreferredMap() );
 		AsciiString lowerMap = pref.getPreferredMap();
 		lowerMap.toLower();
-		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
+		auto  it = TheMapCache->find(lowerMap);
 		if (it != TheMapCache->end())
 		{
 			TheLAN->GetMyGame()->getSlot(0)->setMapAvailability(true);
