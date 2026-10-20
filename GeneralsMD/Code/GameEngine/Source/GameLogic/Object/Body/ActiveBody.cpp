@@ -41,6 +41,7 @@
 #include "Common/ThingTemplate.h"
 #include "Common/Xfer.h"
 #include "GameClient/ControlBar.h"
+#include "WWMath/wwmath.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/ParticleSys.h"
@@ -910,7 +911,11 @@ void ActiveBody::setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeT
 		{
 			//400/500 (80%) + 100 becomes 480/600 (80%)
 			//200/500 (40%) - 100 becomes 160/400 (40%)
-			Real ratio = m_currentHealth / prevMaxHealth;
+			// GeneralsX @feature fbraz 03/05/2026 Guard the ratio: prevMaxHealth is 0 only in
+			// degenerate data, but a NaN ratio here feeds internalChangeHealth and then every
+			// lockstep checksum that reads m_currentHealth; ARM64 and x86 disagree on the
+			// integer cast of that NaN. fallback 1.0f keeps the scale neutral.
+			Real ratio = WWMath::Div_FixNaN(m_currentHealth, prevMaxHealth, 1.0f);
 			Real newHealth = maxHealth * ratio;
 			internalChangeHealth( newHealth - m_currentHealth );
 			break;

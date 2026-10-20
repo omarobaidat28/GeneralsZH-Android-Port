@@ -91,5 +91,16 @@ target_link_libraries(core_wwmath PRIVATE
     core_wwsaveload
 )
 
+# GeneralsX @feature fbraz 03/05/2026 Phase 4: link the fdlibm-backed GameMath library that
+# the deterministic wrappers dispatch to. PUBLIC: wwmath.h is a public header of this target
+# and its deterministic arms need gmath.h everywhere the engine includes it.
+# Upstream reference: Okladnoj, PR #2670
+# https://github.com/TheSuperHackers/GeneralsGameCode/pull/2670
+if (SAGE_USE_DETERMINISTIC_MATH)
+    target_link_libraries(core_wwmath PUBLIC
+        gamemath
+    )
+endif()
+
 # @todo Test its impact and see what to do with the legacy functions.
 #add_compile_definitions(core_wwmath PUBLIC ALLOW_TEMPORARIES) # Enables legacy math with "temporaries"

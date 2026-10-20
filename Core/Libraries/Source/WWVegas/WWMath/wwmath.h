@@ -139,106 +139,128 @@ static WWINLINE float Asin(float val);
 // Otherwise they use platform-native CRT or x87 (fast but platform-specific).
 // Upstream reference: Okladnoj, PR #2670
 // https://github.com/TheSuperHackers/GeneralsGameCode/pull/2670
-
-// Include GameMath headers when deterministic math is enabled
-// Note: GameMath integration is pending. This header will be populated when
-// GameMath submodule or library is available. For now, wrappers fallback to CRT.
-#ifdef USE_DETERMINISTIC_MATH
-// TODO: Uncomment when GameMath library is integrated as submodule
-// #include "GameMath/deterministic_math.h"
+//
+// GeneralsX @feature Android port 20/10/2026 GameMath plumbing is now complete
+// (cmake/gamemath.cmake fetches the standalone TheSuperHackers/GameMath library and defines
+// USE_DETERMINISTIC_MATH). The shipped default for this port is still the measured
+// VC6/x87 contract -- evaluate in double, narrow once -- matching the deployed GeneralsOnline
+// PC client bit-for-bit (docs/WORKDIR/lessons/LESSON-cross-play-desync-method.md).
+// SAGE_USE_DETERMINISTIC_MATH switches the fdlibm path on; see
+// docs/WORKDIR/planning/PLAN-024_UPSTREAM_DETERMINISTIC_MATH.md for when to flip it.
+#if defined(USE_DETERMINISTIC_MATH)
+#include "gmath.h"
 #endif
 
-static WWINLINE float		Atan(float x) 
-{ 
-#ifdef USE_DETERMINISTIC_MATH
-	// TODO: return GameMath::Atan(x);
-	return static_cast<float>(atan(x)); 
+static WWINLINE float		Atan(float x)
+{
+#if defined(USE_DETERMINISTIC_MATH)
+	return gm_atanf(x);
 #else
-	return static_cast<float>(atan(x)); 
+	return static_cast<float>(atan(x));
 #endif
 }
 
-static WWINLINE float		Atan2(float y, float x) 
-{ 
-#ifdef USE_DETERMINISTIC_MATH
-	// TODO: return GameMath::Atan2(y, x);
-	return static_cast<float>(atan2(y, x)); 
+static WWINLINE float		Atan2(float y, float x)
+{
+#if defined(USE_DETERMINISTIC_MATH)
+	return gm_atan2f(y, x);
 #else
-	return static_cast<float>(atan2(y, x)); 
+	return static_cast<float>(atan2(y, x));
 #endif
 }
 
 // Phase 4: Trig function routing (deterministic vs. platform-native)
 // These wrappers are called from Trig.cpp and BaseType geometry methods
-static WWINLINE float SinTrig(float x) 
-{ 
-#ifdef USE_DETERMINISTIC_MATH
-	// TODO: return GameMath::Sin(x);
-	return Sin(x); 
+static WWINLINE float SinTrig(float x)
+{
+#if defined(USE_DETERMINISTIC_MATH)
+	return gm_sinf(x);
 #else
-	return Sin(x); 
+	return Sin(x);
 #endif
 }
 
-static WWINLINE float CosTrig(float x) 
-{ 
-#ifdef USE_DETERMINISTIC_MATH
-	// TODO: return GameMath::Cos(x);
-	return Cos(x); 
+static WWINLINE float CosTrig(float x)
+{
+#if defined(USE_DETERMINISTIC_MATH)
+	return gm_cosf(x);
 #else
-	return Cos(x); 
+	return Cos(x);
 #endif
 }
 
 // GeneralsX @bugfix Android port 22/09/2026 tanf -> (float)tan((double)x), the reference
 // client's tanf on 32-bit MSVC; see the note on WWMath::Sin/Cos.
-static WWINLINE float TanTrig(float x) 
-{ 
-#ifdef USE_DETERMINISTIC_MATH
-	// TODO: return GameMath::Tan(x);
-	return (float)tan((double)x); 
+static WWINLINE float TanTrig(float x)
+{
+#if defined(USE_DETERMINISTIC_MATH)
+	return gm_tanf(x);
 #else
-	return (float)tan((double)x); 
+	return (float)tan((double)x);
 #endif
 }
 
-static WWINLINE float ACosTrig(float x) 
-{ 
-#ifdef USE_DETERMINISTIC_MATH
-	// TODO: return GameMath::Acos(x);
-	return Acos(x); 
+static WWINLINE float ACosTrig(float x)
+{
+#if defined(USE_DETERMINISTIC_MATH)
+	return gm_acosf(x);
 #else
-	return Acos(x); 
+	return Acos(x);
 #endif
 }
 
-static WWINLINE float ASinTrig(float x) 
-{ 
-#ifdef USE_DETERMINISTIC_MATH
-	// TODO: return GameMath::Asin(x);
-	return Asin(x); 
+static WWINLINE float ASinTrig(float x)
+{
+#if defined(USE_DETERMINISTIC_MATH)
+	return gm_asinf(x);
 #else
-	return Asin(x); 
+	return Asin(x);
 #endif
 }
 
-// Phase 4: Origin sqrt gateway for geometry (Coord2D/Coord3D length calculations)
-// Must dispatch to deterministic Sqrt when enabled
-static WWINLINE double SqrtOrigin(double x) 
-{ 
-#ifdef USE_DETERMINISTIC_MATH
-	// TODO: return GameMath::Sqrt(x);
-	return sqrt(x); 
+// Phase 4: Origin gateways for geometry and simulation call sites.
+// GeneralsX @feature fbraz 03/05/2026 Each wrapper preserves the exact type (float vs
+// double) of the vanilla CRT call it replaces. In deterministic builds the Origin wrappers
+// narrow double arguments to float before the fdlibm single-precision entry point, so the
+// evaluation cannot drift through platform-specific double-precision libm paths.
+#if defined(USE_DETERMINISTIC_MATH)
+	static WWINLINE double	SqrtOrigin(double x) { return (double)gm_sqrtf((float)x); }
+	static WWINLINE float	SqrtOrigin(float x) { return gm_sqrtf(x); }
+	static WWINLINE float	SqrtfOrigin(float x) { return gm_sqrtf(x); }
+	static WWINLINE double	Atan2Origin(double y, double x) { return (double)gm_atan2f((float)y, (float)x); }
+	static WWINLINE float	Atan2Origin(float y, float x) { return gm_atan2f(y, x); }
+	static WWINLINE double	PowOrigin(double x, double y) { return (double)gm_powf((float)x, (float)y); }
+	static WWINLINE float	PowOrigin(float x, float y) { return gm_powf(x, y); }
 #else
-	return sqrt(x); 
+	static WWINLINE double	SqrtOrigin(double x) { return sqrt(x); }
+	static WWINLINE float	SqrtOrigin(float x) { return sqrtf(x); }
+	static WWINLINE float	SqrtfOrigin(float x) { return sqrtf(x); }
+	static WWINLINE double	Atan2Origin(double y, double x) { return atan2(y, x); }
+	static WWINLINE float	Atan2Origin(float y, float x) { return atan2f(y, x); }
+	static WWINLINE double	PowOrigin(double x, double y) { return pow(x, y); }
+	static WWINLINE float	PowOrigin(float x, float y) { return powf(x, y); }
 #endif
-}
 static WWINLINE float		Sign(float val);
+#if defined(USE_DETERMINISTIC_MATH)
+static WWINLINE float		Ceil(float val) { return gm_ceilf(val); }
+static WWINLINE float		Floor(float val) { return gm_floorf(val); }
+static WWINLINE float		Round(float val) { return gm_floorf(val + 0.5f); }
+#else
 static WWINLINE float		Ceil(float val) { return ceilf(val); }
 static WWINLINE float		Floor(float val) { return floorf(val); }
 static WWINLINE float		Round(float val) { return floorf(val + 0.5f); }
+#endif
 static WWINLINE bool			Fast_Is_Float_Positive(const float & val);
 static WWINLINE bool			Is_Power_Of_2(const unsigned int val);
+
+// GeneralsX @feature fbraz 03/05/2026 NaN-safe division for results that feed integer
+// casts or comparison-based simulation flow. ARM64 casts (Int)NaN to 0 while x86 casts it
+// to INT_MIN (0x80000000), so any unguarded divide-by-zero that crosses those boundaries
+// desynchronises a cross-platform lockstep game immediately. In non-deterministic builds
+// these are plain divisions: the shipped default keeps the exact arithmetic the PC
+// client's source performs today.
+static WWINLINE float			Div_FixNaN(float dividend, float divisor, float fallback = 0.0f);
+static WWINLINE double			Div_FixNaN(double dividend, double divisor, double fallback = 0.0);
 
 static float		Random_Float();
 
@@ -478,7 +500,15 @@ WWINLINE long WWMath::Float_To_Long(double f)
 // Cos
 // ----------------------------------------------------------------------------
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(USE_DETERMINISTIC_MATH)
+// GeneralsX @feature fbraz 03/05/2026 Deterministic builds evaluate every common entry
+// point through fdlibm so that no engine path can slip a platform library underneath the
+// simulation. See the wrapper block at the top of this file.
+WWINLINE float WWMath::Cos(float val)
+{
+	return gm_cosf(val);
+}
+#elif defined(_MSC_VER) && defined(_M_IX86)
 WWINLINE float WWMath::Cos(float val)
 {
 	float retval;
@@ -506,7 +536,13 @@ WWINLINE float WWMath::Cos(float val)
 // Sin
 // ----------------------------------------------------------------------------
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(USE_DETERMINISTIC_MATH)
+// GeneralsX @feature fbraz 03/05/2026 Deterministic builds; see WWMath::Cos above.
+WWINLINE float WWMath::Sin(float val)
+{
+	return gm_sinf(val);
+}
+#elif defined(_MSC_VER) && defined(_M_IX86)
 WWINLINE float WWMath::Sin(float val)
 {
 	float retval;
@@ -849,6 +885,27 @@ WWINLINE float WWMath::Inv_Sqrt(float a)
 	return x3 * r3;
 }
 #endif
+
+WWINLINE float WWMath::Div_FixNaN(float dividend, float divisor, float fallback)
+{
+#if defined(USE_DETERMINISTIC_MATH)
+	return (divisor == 0.0f) ? fallback : dividend / divisor;
+#else
+	return dividend / divisor;
+#endif
+}
+
+// GeneralsX @feature fbraz 03/05/2026 The double overload evaluates in float inside the
+// deterministic branch (the Origin-wrapper convention): a double-precision call site still
+// answers identically on ARM64 and x86 instead of drifting through double libm paths.
+WWINLINE double WWMath::Div_FixNaN(double dividend, double divisor, double fallback)
+{
+#if defined(USE_DETERMINISTIC_MATH)
+	return (double) ((divisor == 0.0) ? (float) fallback : (float) dividend / (float) divisor);
+#else
+	return dividend / divisor;
+#endif
+}
 
 WWINLINE float WWMath::Normalize_Angle(float angle)
 {

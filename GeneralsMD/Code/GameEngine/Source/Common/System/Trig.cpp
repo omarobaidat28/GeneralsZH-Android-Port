@@ -77,9 +77,18 @@
 // So evaluate in double and narrow once. Off MSVC only: a VC6 build must keep
 // calling the CRT entry points, because there they already are this.
 
+// GeneralsX @refactor fbraz 03/05/2026 Conditionally route the legacy trig functions through
+// the deterministic GameMath wrappers. In deterministic builds every call answers through
+// fdlibm; otherwise the arm below is unchanged: the measured VC6/x87 contract that matches
+// the deployed GeneralsOnline PC client (evaluate in double, narrow once).
+// Upstream reference: Okladnoj, PR #2670
+// https://github.com/TheSuperHackers/GeneralsGameCode/pull/2670
+
 Real Sin(Real x)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(USE_DETERMINISTIC_MATH)
+	return WWMath::SinTrig(x);
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	return sinf(x);
 #else
 	return (Real)sin((double)x);
@@ -88,7 +97,9 @@ Real Sin(Real x)
 
 Real Cos(Real x)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(USE_DETERMINISTIC_MATH)
+	return WWMath::CosTrig(x);
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	return cosf(x);
 #else
 	return (Real)cos((double)x);
@@ -97,7 +108,9 @@ Real Cos(Real x)
 
 Real Tan(Real x)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(USE_DETERMINISTIC_MATH)
+	return WWMath::TanTrig(x);
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	return tanf(x);
 #else
 	return (Real)tan((double)x);
@@ -106,7 +119,9 @@ Real Tan(Real x)
 
 Real ACos(Real x)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(USE_DETERMINISTIC_MATH)
+	return WWMath::ACosTrig(x);
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	return acosf(x);
 #else
 	return (Real)acos((double)x);
@@ -115,7 +130,9 @@ Real ACos(Real x)
 
 Real ASin(Real x)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(USE_DETERMINISTIC_MATH)
+	return WWMath::ASinTrig(x);
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	return asinf(x);
 #else
 	return (Real)asin((double)x);

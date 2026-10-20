@@ -48,6 +48,7 @@
 #include "Common/ThingFactory.h"
 #include "Common/ThingTemplate.h"
 #include "Common/Xfer.h"
+#include "WWMath/wwmath.h"
 
 #include "GameClient/Drawable.h"
 #include "GameClient/FXList.h"
@@ -939,7 +940,7 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 			targetPos.set( *victimPos );
 		}
 		Real reAngle = getWeaponRecoilAmount();
-		Real reDir = reAngle != 0.0f ? (atan2(victimPos->y - sourcePos->y, victimPos->x - sourcePos->x)) : 0.0f;
+		Real reDir = reAngle != 0.0f ? (WWMath::Atan2Origin(victimPos->y - sourcePos->y, victimPos->x - sourcePos->x)) : 0.0f;
 		VeterancyLevel v = sourceObj->getVeterancyLevel();
 		const FXList* fx = isProjectileDetonation ? getProjectileDetonateFX(v) : getFireFX(v);
 
@@ -1042,7 +1043,11 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 		v.y = victimPos->y - sourcePos->y;
 		v.z = victimPos->z - sourcePos->z;
 		// don't round the result; we WANT a fractional-frame-delay in this case.
-		Real delayInFrames = (v.length() / getWeaponSpeed());
+		// GeneralsX @feature fbraz 03/05/2026 Guard the divide: a zero-speed weapon would make
+		// delayInFrames NaN/INF, and the projectile's spawn delay feeds the checksum-width of
+		// the next frames through the frame counter cast. fallback 0.0f detonates on the spot,
+		// the closest interpretation of a zero-speed projectile.
+		Real delayInFrames = WWMath::Div_FixNaN(v.length(), getWeaponSpeed());
 
 		ObjectID damageID = getDamageDealtAtSelfPosition() ? INVALID_ID : victimID;
 
@@ -2178,7 +2183,7 @@ Bool Weapon::computeApproachTarget(const Object *source, const Object *target, c
 		if (source->isAboveTerrain())
 		{
 			// Don't do a 180 degree turn.
-			Real angle = atan2(-dir.y, -dir.x);
+			Real angle = WWMath::Atan2Origin(-dir.y, -dir.x);
 			Real relAngle = source->getOrientation()- angle;
 			if (relAngle>2*PI) relAngle -= 2*PI;
 			if (relAngle<-2*PI) relAngle += 2*PI;
@@ -2191,7 +2196,7 @@ Bool Weapon::computeApproachTarget(const Object *source, const Object *target, c
 
 		if (angleOffset != 0.0f)
 		{
-			Real angle = atan2(dir.y, dir.x);
+			Real angle = WWMath::Atan2Origin(dir.y, dir.x);
 			dir.x = (Real)Cos(angle + angleOffset);
 			dir.y = (Real)Sin(angle + angleOffset);
 		}
@@ -2238,7 +2243,7 @@ Bool Weapon::computeApproachTarget(const Object *source, const Object *target, c
 
 		if (angleOffset != 0.0f)
 		{
-			Real angle = atan2(dir.y, dir.x);
+			Real angle = WWMath::Atan2Origin(dir.y, dir.x);
 			dir.x = (Real)Cos(angle + angleOffset);
 			dir.y = (Real)Sin(angle + angleOffset);
 		}

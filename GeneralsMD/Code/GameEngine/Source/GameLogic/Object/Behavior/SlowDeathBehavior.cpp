@@ -36,6 +36,7 @@
 #include "Common/GameLOD.h"
 #include "Common/INI.h"
 #include "Common/RandomValue.h"
+#include "WWMath/wwmath.h"
 #include "Common/Thing.h"
 #include "Common/ThingTemplate.h"
 #include "Common/Xfer.h"
@@ -190,7 +191,10 @@ Int SlowDeathBehavior::getProbabilityModifier( const DamageInfo *damageInfo ) co
 	// that came to rest drew one extra logic random value -- desynchronising a cross-play
 	// game from the first one that landed. realToIntTruncRef() converts as the PC does.
 	Int overkillDamage = realToIntTruncRef(damageInfo->out.m_actualDamageDealt - damageInfo->out.m_actualDamageClipped);
-	Real overkillPercent = (float)overkillDamage / (float)getObject()->getBodyModule()->getMaxHealth();
+	// GeneralsX @feature fbraz 03/05/2026 Guard the ratio: a 0-MaxHealth object would produce
+	// NaN/INF here, and overkillPercent flows through realToIntTruncRef() into the checksum.
+	// (float)NaN to Int is 0 on ARM64 and INT_MIN on x86 -- an instant desync.
+	Real overkillPercent = WWMath::Div_FixNaN((float)overkillDamage, (float)getObject()->getBodyModule()->getMaxHealth(), 0.0f);
 	Int overkillModifier = realToIntTruncRef(overkillPercent * getSlowDeathBehaviorModuleData()->m_modifierBonusPerOverkillPercent);
 
 	return max( getSlowDeathBehaviorModuleData()->m_probabilityModifier + overkillModifier, 1 );
@@ -315,7 +319,7 @@ void SlowDeathBehavior::beginSlowDeath(const DamageInfo *damageInfo)
 				physics->setExtraBounciness(-1.0);					// we don't want this guy to bounce at all
 				physics->setExtraFriction(-3 * SECONDS_PER_LOGICFRAME_REAL);							// reduce his ground friction a bit
 				physics->setAllowBouncing(true);
-				Real orientation = atan2(force.y, force.x);
+				Real orientation = WWMath::Atan2Origin(force.y, force.x);
 				physics->setAngles(orientation, 0, 0);
 				obj->getDrawable()->setModelConditionState(MODELCONDITION_EXPLODED_FLAILING);
 				m_flags |= (1<<FLUNG_INTO_AIR);
