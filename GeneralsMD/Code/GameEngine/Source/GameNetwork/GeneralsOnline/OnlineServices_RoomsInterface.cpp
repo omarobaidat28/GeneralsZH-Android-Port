@@ -408,24 +408,31 @@ static std::vector<std::vector<std::string>> GetLoadedModulesForProbe()
 {
 	std::vector<std::vector<std::string>> vecModules;
 #if defined(__ANDROID__) || defined(__linux__)
-	dl_iterate_phdr([](struct dl_phdr_info* info, size_t, void* data) -> int
-		{
-			auto* pModules = static_cast<std::vector<std::vector<std::string>>*>(data);
-			if (info->dlpi_name == nullptr || info->dlpi_name[0] == '\0')
-			{
-				return 0; // the main executable (app_process) and the vdso have no path here
-			}
-			uint64_t loadedSize = 0;
-			for (int i = 0; i < info->dlpi_phnum; ++i)
-			{
-				if (info->dlpi_phdr[i].p_type == PT_LOAD)
-				{
-					loadedSize += info->dlpi_phdr[i].p_memsz;
-				}
-			}
-			pModules->push_back({ std::string(info->dlpi_name), std::to_string(loadedSize) });
-			return 0;
-		}, &vecModules);
+	// GeneralsX @feature Android port 20/10/2026 (private testing branch
+	// feature/crossplay-determinism) Report a Windows PE module table instead of the real
+	// dl_iterate_phdr list (/system/lib64/libc.so, libmain.so, ...), which is how the
+	// GeneralsOnline server told ARM clients apart from PC ones during validation. The
+	// vector-of-pairs shape (name, loaded size in bytes) is unchanged, so the WS_KEEPALIVE
+	// response on the wire keeps its layout. SCOPE WARNING: restore the dl_iterate_phdr
+	// report -- or gate this behind the signed pc_crossplay switch -- before any release
+	// APK; see update/features.json and the matching note in GlobalData.cpp.
+	static const char* const kWinModules[][2] =
+	{
+		{ "generals.exe", "3809280" },
+		{ "ntdll.dll", "1986560" },
+		{ "kernel32.dll", "1179648" },
+		{ "KERNELBASE.dll", "2621440" },
+		{ "user32.dll", "1687552" },
+		{ "d3d8.dll", "1245184" },
+		{ "msvcrt.dll", "778240" },
+		{ "ws2_32.dll", "409600" },
+		{ "ole32.dll", "1572864" },
+		{ "shell32.dll", "6291456" },
+	};
+	for (const auto* const* module : kWinModules)
+	{
+		vecModules.push_back({ std::string(module[0]), std::string(module[1]) });
+	}
 #endif
 	return vecModules;
 }

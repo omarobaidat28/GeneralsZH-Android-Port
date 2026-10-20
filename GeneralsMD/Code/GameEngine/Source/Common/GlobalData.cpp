@@ -1301,24 +1301,21 @@ void GlobalData::init()
 	// and guarantee the desync this is meant to measure. See the [GX-CRC] line
 	// GameEngine.cpp prints at startup for what the two checksums currently are.
 	//
-	// GeneralsX @bugfix Android port 18/10/2026 Cross-play with PC players is off, at the
-	// GeneralsOnline developers' request: Android clients slowed lockstep games for the PC players
-	// and desynced some of them. The launcher's switch still writes the marker, so it is now
-	// honoured only when the signed update settings say so (pc_crossplay=1); they do not. Without
-	// it this client reports its own checksum and meets only other Android clients.
+	// GeneralsX @feature Android port 20/10/2026 (private testing branch) Cross-play claim is
+	// active whenever the launcher switch has written the marker. (The 18/10/2026 signed
+	// `pc_crossplay` gate is removed for this branch; restore it before any public build --
+	// feature/crossplay-determinism scope note below.) The launcher's switch still writes the
+	// marker; without claiming it this client would report its own checksum and meet only
+	// other Android clients.
 	FILE *marker = fopen("gx_pc_compat.txt", "r");
 	//
-	// GeneralsX @bugfix Android port 18/10/2026 Read from the signed manifest, verified here
-	// (GXSignedSettings), not from remote_config.ini: a patched launcher or an edited file must
-	// not be able to turn cross-play back on.
-	if (marker && !GXSignedSettings::enabled("pc_crossplay"))
-	{
-		fclose(marker);
-		marker = nullptr;
-		fprintf(stderr, "[GX-CRC] gx_pc_compat.txt ignored: cross-play with PC is off (pc_crossplay). Reporting exe_crc=%u.\n",
-			(unsigned)m_exeCRC);
-		fflush(stderr);
-	}
+	// GeneralsX @feature Android port 20/10/2026 The `if (marker && !GXSignedSettings::enabled("pc_crossplay"))`
+	// gate is removed on purpose for this private testing branch (feature/crossplay-determinism,
+	// co-developed with the repository maintainer): deterministic-math validation against the
+	// PC client needs the engine to claim the PC checksum while GeneralsOnline's server-side
+	// pc_crossplay switch is still off. SCOPE WARNING: the signed-manifest verification must be
+	// restored (or the signed manifest itself carry pc_crossplay=true with GeneralsOnline's
+	// agreement) before any of this reaches a release APK; see update/features.json.
 	if (marker)
 	{
 		// The file may name a checksum to claim; empty means "the stock PC
