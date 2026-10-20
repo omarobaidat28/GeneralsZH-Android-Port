@@ -64,6 +64,7 @@
 #include "GameClient/View.h"
 
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/FPUControl.h"
 #include "GameLogic/TerrainLogic.h"
 
 #include "Common/file.h"
@@ -515,6 +516,10 @@ ALenum OpenALAudioManager::getALFormat(uint8_t channels, uint8_t bitsPerSample)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::init()
 {
+	// GeneralsX @bugfix Android port 20/10/2026 Audio/OpenAL device bring-up must not leak
+	// its FPCR/FPU register changes into the simulation thread.
+	ScopedFPUGuard fpuGuard;
+
 	AudioManager::init();
 #ifdef INTENSE_DEBUG
 	DEBUG_LOG(("Sound has temporarily been disabled in debug builds only. jkmcd\n"));
@@ -577,6 +582,10 @@ double msSince(AudioPerf::Clock::time_point t)
 
 void OpenALAudioManager::update()
 {
+	// GeneralsX @bugfix Android port 20/10/2026 Guard: OpenAL Soft's processing path alters
+	// the FPCR/FPU registers; restore the deterministic environment around every audio update.
+	ScopedFPUGuard fpuGuard;
+
 	const Bool perf = GXTrace::isPerfEnabled();
 	AudioPerf::Clock::time_point t0;
 	if (perf) {
@@ -628,6 +637,9 @@ void OpenALAudioManager::update()
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::stopAudio(AudioAffect which)
 {
+	// GeneralsX @bugfix Android port 20/10/2026 Guard: see OpenALAudioManager::update().
+	ScopedFPUGuard fpuGuard;
+
 	// All we really need to do is:
 	// 1) Remove the EOS callback.
 	// 2) Stop the sample, (so that when we later unload it, bad stuff doesn't happen)
@@ -683,6 +695,9 @@ void OpenALAudioManager::stopAudio(AudioAffect which)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::pauseAudio(AudioAffect which)
 {
+	// GeneralsX @bugfix Android port 20/10/2026 Guard: see OpenALAudioManager::update().
+	ScopedFPUGuard fpuGuard;
+
 	std::list<PlayingAudio*>::iterator it;
 
 	PlayingAudio* playing = NULL;
@@ -819,6 +834,9 @@ void OpenALAudioManager::pauseAmbient(Bool shouldPause)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::playAudioEvent(AudioEventRTS* event)
 {
+	// GeneralsX @bugfix Android port 20/10/2026 Guard: see OpenALAudioManager::update().
+	ScopedFPUGuard fpuGuard;
+
 #ifdef INTENSIVE_AUDIO_DEBUG
 	DEBUG_LOG(("OPENAL (%d) - Processing play request: %d (%s)", TheGameLogic->getFrame(), event->getPlayingHandle(), event->getEventName().str()));
 #endif

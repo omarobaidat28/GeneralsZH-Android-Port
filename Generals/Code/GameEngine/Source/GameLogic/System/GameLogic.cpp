@@ -216,6 +216,21 @@ void setFPMode()
 	feclearexcept(FE_ALL_EXCEPT);
 	fesetround(FE_TONEAREST);
 
+	#if defined(__aarch64__)
+	// GeneralsX @bugfix Android port 20/10/2026 Enforce the deterministic FPCR state directly.
+	// fesetenv(FE_DFL_ENV) resets FPCR, but the audio mixer and GPU driver threads flip
+	// Flush-To-Zero and the rounding mode on their own copies, and a hybrid-ABI library can
+	// leave a thread's FPCR previously altered. Clear explicitly, preserving any other bits:
+	//   bit 24        FZ    (Flush-to-Zero)          -> 0: keep IEEE 754 subnormals
+	//   bits 23:22    RMode (Rounding Mode)          -> 00: Round to Nearest, ties to even
+	//   bits 15:8     traps (IOC/DZC/OFC/UFC/IDC/IXC) -> 0: no traps, IEEE flag semantics
+	// Mirrored from GeneralsMD/Code/GameEngine/Source/GameLogic/System/GameLogic.cpp.
+	unsigned long long fpcr = 0;
+	__asm__ __volatile__("mrs %0, fpcr" : "=r"(fpcr));
+	fpcr &= ~((1ULL << 24) | (3ULL << 22) | (0xFFULL << 8));
+	__asm__ __volatile__("msr fpcr, %0" : : "r"(fpcr));
+	#endif
+
 	#if defined(__i386__) || defined(__x86_64__)
 	unsigned short controlWord = 0;
 	__asm__ __volatile__("fnstcw %0" : "=m" (controlWord));
@@ -3205,6 +3220,12 @@ void GameLogic::update()
 {
 	USE_PERF_TIMER(GameLogic_update)
 	PROFILER_SECTION_COLOR(0x4CAF50);
+
+	// GeneralsX @bugfix fbraz3 24/06/2026 (backported 20/10/2026) Lock FPU state before every
+	// simulation frame and restore it on exit, so OpenAL/driver register changes inside the
+	// frame cannot leak into the next one. Mirrored from the GeneralsMD tree.
+	ScopedFPUGuard fpuGuard;
+
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
 		if (m_frame % 2 != 0)
 		{

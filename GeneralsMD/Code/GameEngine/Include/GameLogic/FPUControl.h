@@ -35,3 +35,23 @@
 	* anywhere that touches DirectX inside GameLogic loops (LoadScreen).
 	*/
 void setFPMode();
+
+/**
+ * GeneralsX @bugfix Android port 20/10/2026 ScopedFPUGuard: RAII FPU-state guard.
+ *
+ * Audio drivers (OpenAL Soft), video decoders and GPU driver callbacks aggressively alter
+ * the hardware floating-point control registers (Flush-To-Zero, Rounding mode) for DSP
+ * performance. If that state leaks into the simulation, ARM64 flushes subnormals to zero
+ * while x86 preserves them, and the lockstep CRCs diverge. Constructing the guard
+ * reinstates the deterministic environment; destroying it reinstates it again, so the
+ * state left behind after an inner scope is the engine's, never a driver's.
+ *
+ * Place at function entry wherever non-deterministic code can run on the thread that also
+ * simulates: GameLogic::update(), the audio entry points and screen picking.
+ */
+class ScopedFPUGuard
+{
+public:
+	ScopedFPUGuard() { setFPMode(); }
+	~ScopedFPUGuard() { setFPMode(); }
+};

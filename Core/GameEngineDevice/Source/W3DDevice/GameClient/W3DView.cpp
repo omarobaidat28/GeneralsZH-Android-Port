@@ -69,6 +69,8 @@
 #include "GameLogic/AI.h"			///< For AI debug (yes, I'm cheating for now)
 #include "GameLogic/AIPathfind.h"			///< For AI debug (yes, I'm cheating for now)
 #include "GameLogic/ExperienceTracker.h"
+// GeneralsX @bugfix costin-alupului 20/07/2026 (backported 20/10/2026) setFPMode() so
+// screen->world pick math runs under the engine's expected FP mode.
 #include "GameLogic/FPUControl.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/AIUpdate.h"
@@ -2539,6 +2541,11 @@ Int W3DView::iterateDrawablesInRegion( IRegion2D *screenRegion,
 //-------------------------------------------------------------------------------------------------
 Drawable *W3DView::pickDrawable( const ICoord2D *screen, Bool forceAttack, PickType pickType )
 {
+	// GeneralsX @bugfix costin-alupului 20/07/2026 (backported 20/10/2026) Guard the
+	// screen->world ray math: the display driver callbacks leave the FPU/FPCR in a
+	// non-deterministic state, and picking feeds the commands the lockstep simulation runs.
+	ScopedFPUGuard fpuGuard;
+
 	RenderObjClass *renderObj = nullptr;
 	Drawable *draw = nullptr;
 	DrawableInfo *drawInfo = nullptr;
