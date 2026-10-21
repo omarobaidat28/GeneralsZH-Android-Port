@@ -642,7 +642,10 @@ public class SetupActivity extends Activity {
         // newer one is out and takes the player there.
         updatesOpenOnlineButton = UiKit.button(content, UiKit.BTN_TONAL, R.drawable.ic_gzh_globe,
             getString(R.string.setup_button_open_online_data), () ->
-                startActivity(new Intent(this, GeneralsOnlineActivity.class)));
+                lxGuardedOpenOnline());
+        // GeneralsX @feature Android port 21/10/2026 GXOnlineGate: when the device failed
+        // the startup benchmark the Online entries stay visible but dead, with a note card
+        // explaining exactly why (message per owner spec).
         SwitchCompat auto = UiKit.switchRow(content,
             getString(R.string.setup_switch_auto_updates), getString(R.string.setup_switch_auto_updates_desc));
         auto.setChecked(UpdateManager.isAutoCheckEnabled(this));
@@ -2776,11 +2779,52 @@ public class SetupActivity extends Activity {
 
         UiKit.button(content, UiKit.BTN_TONAL, R.drawable.ic_gzh_account,
             getString(R.string.setup_button_online_account), () ->
-                startActivity(new Intent(this, GeneralsOnlineActivity.class)));
+                lxGuardedOpenOnline());
+    }
+
+    // GeneralsX @feature Android port 21/10/2026 GXOnlineGate: single funnel for every
+    // GeneralsOnline entry in this activity. Reads the engine's verdict marker; when the
+    // device failed the benchmark the launch is refused and the exact owner-spec message
+    // ("Device fails 60Hz/50FPS requirement. Online disabled to prevent server lag.
+    // LAN/Skirmish only.") is shown instead.
+    private void lxGuardedOpenOnline() {
+        if (gxOnlineBlocked()) {
+            showOnlineBlockedNotice();
+            return;
+        }
+        startActivity(new Intent(this, GeneralsOnlineActivity.class));
+    }
+
+    // Shared engine<->launcher contract: the engine writes this file on gate failure and
+    // deletes it on a later pass (see SDL3GameEngine.cpp writeMarker).
+    private boolean gxOnlineBlocked() {
+        String gp = getSavedGamePath();
+        return gp != null && new java.io.File(gp, "gx_online_blocked.txt").exists();
+    }
+
+    private void showOnlineBlockedNotice() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.setup_online_blocked_title)
+            .setMessage(getString(R.string.online_blocked_by_device_gate))
+            .setPositiveButton(android.R.string.ok, null)
+            .show();
+    }
+
+    static java.io.File getSavedGamePathStatic(android.content.Context ctx) {
+        // GeneralsOnlineActivity's guard needs the same path resolution the launcher uses;
+        // SetupActivity.getSavedGamePath(ctx) is public-static for exactly this reason.
+        String gp = getSavedGamePath(ctx);
+        return gp == null ? null : new java.io.File(gp);
     }
 
     private void refreshGeneralsOnlineStatus() {
         if (onlineStatusView == null) {
+            return;
+        }
+        // GeneralsX @feature Android port 21/10/2026 GXOnlineGate: the status line also
+        // carries the gate message so the reasons stay visible without opening anything.
+        if (gxOnlineBlocked()) {
+            onlineStatusView.setText(getString(R.string.online_blocked_by_device_gate));
             return;
         }
         String displayName = GeneralsOnlineActivity.getSignedInDisplayName(this);

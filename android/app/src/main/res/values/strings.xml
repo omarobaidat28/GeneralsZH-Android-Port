@@ -25,6 +25,10 @@
     <string name="setup_button_launch_game">Launch Game</string>
     <string name="setup_button_view_logs">View Logs</string>
     <!-- GeneralsX @feature Android port 21/10/2026 Tools tab: import custom maps (MapImporter). -->
+    <!-- GeneralsX @feature Android port 21/10/2026 GXOnlineGate (strict device performance
+         gate): message text is owner-specified verbatim. -->
+    <string name="online_blocked_by_device_gate">Device fails 60Hz/50FPS requirement. Online disabled to prevent server lag. LAN/Skirmish only.</string>
+    <string name="setup_online_blocked_title">Online disabled</string>
     <string name="tools_import_map_button">Import Custom Map</string>
     <string name="tools_import_map_note">Pick .map files (and optionally their .tga previews) from any app; they are copied into the game\'s Maps folder and appear in the next map list.</string>
     <string name="tools_import_map_chooser">Import Custom Map</string>

@@ -42,6 +42,10 @@
 #include "Common/GameAudio.h"
 #include "Common/ActionManager.h"
 #include "Common/GameEngine.h"
+
+// GeneralsX @feature Android port 21/10/2026 GxVirtualKeys render hook (defined in
+// SDL3GameEngine.cpp, Core device layer).
+extern "C" void GXVirtualKeysRenderFrame();
 #include "Common/GameState.h"
 #include "Common/GameUtility.h"
 #include "Common/GlobalData.h"
@@ -736,6 +740,9 @@ void GameClient::update()
 
 		// redraw all views, update the GUI
 		TheDisplay->UPDATE();
+		// GeneralsX @feature Android port 21/10/2026 GxVirtualKeys: buttons are the last UI
+		// layer -- drawn after the window system, before the present (see SDL3GameEngine.cpp).
+		GXVirtualKeysRenderFrame();
 		TheDisplay->DRAW();
 		return;
 	}
@@ -881,6 +888,9 @@ void GameClient::update()
 	// redraw all views, update the GUI
 	//if(TheGameLogic->getFrame() >= 2)
 
+		// GeneralsX @feature Android port 21/10/2026 GxVirtualKeys: buttons are the last UI
+		// layer -- drawn after the window system, before the present (see SDL3GameEngine.cpp).
+		GXVirtualKeysRenderFrame();
 		TheDisplay->DRAW();
 	}
 

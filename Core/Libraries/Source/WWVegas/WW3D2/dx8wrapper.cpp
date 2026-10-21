@@ -57,6 +57,7 @@
 #if defined(__ANDROID__)
 // GeneralsX @build Android port GLES experiment - declares Direct3DCreate8_GLES
 #include "d3d8gles.h"
+#include <algorithm>  // std::min/std::max (Pillarbox_DRS_Set_Percent clamp)
 #endif
 // GeneralsX @build BenderAI 10/02/2026 - Need LoadLibrary/GetProcAddress/FreeLibrary for dynamic loading
 #include "module_compat.h"
@@ -205,6 +206,18 @@ static int UpscaleModePercent(const char *mode)
 	if (strcmp(mode, "performance") == 0) return 50;
 	return 100;
 }
+
+// GeneralsX @feature Android port 21/10/2026 DRS (dynamic resolution scaling) state for
+// Pillarbox_DRS_Set_Percent(): the launcher's base upscale percent (GX_UPSCALE), the game's
+// render-resolution base, and the geometry Pillarbox_Setup resolved. Captured on every setup so a
+// mid-session device reset (rotation, resolution change) re-bases the controller's coordinates.
+static int s_gxDrsBasePercent = 100;  // GX_UPSCALE base (77/67/59/50 when the launcher picked an upscaler mode)
+static int s_gxDrsBaseW = 0;          // scene render-resolution base (gameW * kPillarboxRenderScale)
+static int s_gxDrsBaseH = 0;
+static bool s_gxDrsBaseGsr = true;    // SGSR unless GX_UPSCALER=bilinear
+static bool s_gxDrsVbInitiallyOn = false; // the setup's own first decision kept the virtual backbuffer on
+static int s_gxDrsBbW = 0, s_gxDrsBbH = 0;
+static bool s_gxDrsCaptured = false;
 #endif
 
 bool DX8Wrapper::Pillarbox_Setup(int gameW, int gameH)
@@ -250,6 +263,17 @@ bool DX8Wrapper::Pillarbox_Setup(int gameW, int gameH)
 		const int scaledW = ((renderW * percent / 100) & ~1);
 		const int scaledH = ((renderH * percent / 100) & ~1);
 		const bool smaller = renderW < bbW || renderH < bbH || percent < 100;
+		// GeneralsX @feature Android port 21/10/2026 DRS: remember the geometry this setup chose so
+		// Pillarbox_DRS_Set_Percent() can re-derive the scene target at runtime (and restore the
+		// setup's initial virtual-backbuffer aspect decision when DRS returns to 100%).
+		s_gxDrsBasePercent = percent;
+		s_gxDrsBaseW = renderW;
+		s_gxDrsBaseH = renderH;
+		s_gxDrsBaseGsr = gsr;
+		s_gxDrsVbInitiallyOn = smaller;
+		s_gxDrsBbW = bbW;
+		s_gxDrsBbH = bbH;
+		s_gxDrsCaptured = true;
 		if (d3d8gles_SetVirtualBackbuffer(smaller ? renderW : 0, smaller ? renderH : 0, scaledW, scaledH, gsr ? 1 : 0)) {
 			fprintf(stderr, "INFO: game %dx%d on a %dx%d window: virtual backbuffer rendered at %dx%d (%s, upscale %d%%), no pillarbox\n",
 				renderW, renderH, bbW, bbH, scaledW, scaledH, gsr ? "SGSR" : "bilinear", percent);
@@ -493,6 +517,50 @@ void DX8Wrapper::Upscale_Scene_Begin_UI()
 #if defined(__ANDROID__)
 	if (!d3d8gles_ShouldUseVulkanBackend())
 		d3d8gles_UpscaleSceneNow();
+#endif
+}
+
+// GeneralsX @feature Android port 21/10/2026 See the declaration comment in dx8wrapper.h: reapplies
+// the virtual backbuffer with a DRS-scaled scene target. The game's logical resolution, every
+// window/screen coordinate and the finger hit-test's pillarbox rect are untouched -- only the scene's
+// render-target pixel size shrinks, and the present-time upscale (SGSR or bilinear, whichever the
+// launcher chose) restores it to the screen. Restoring 100% reproduces the setup's initial decision
+// exactly (virtual backbuffer off when nothing needs it), so no leftover extra present pass remains.
+bool DX8Wrapper::Pillarbox_DRS_Set_Percent(int percent)
+{
+#if defined(__ANDROID__)
+	if (percent < 1 || percent > 100)
+	{
+		return false;
+	}
+	if (!s_gxDrsCaptured || d3d8gles_ShouldUseVulkanBackend())
+	{
+		// No GLES virtual-backbuffer base captured (not Android setup, or an explicit DXVK device):
+		// scene re-sizing is a no-op there -- DXVK has no runtime re-sizeable scene target in this
+		// build (see Pillarbox_Setup: its path is the fixed-resolution offscreen target).
+		return false;
+	}
+	const int effective = std::max(50, std::min(100, s_gxDrsBasePercent * percent / 100));
+	const bool aspectNeeded = s_gxDrsBaseW < s_gxDrsBbW || s_gxDrsBaseH < s_gxDrsBbH;
+	if (effective == 100 && !aspectNeeded && !s_gxDrsVbInitiallyOn)
+	{
+		// Back to the setup's initial state: no virtual backbuffer at all (render 1:1 at native).
+		d3d8gles_SetVirtualBackbuffer(0, 0, 0, 0, s_gxDrsBaseGsr ? 1 : 0);
+		return true;
+	}
+	const int scaledW = ((s_gxDrsBaseW * effective / 100) & ~1);
+	const int scaledH = ((s_gxDrsBaseH * effective / 100) & ~1);
+	const bool ok = d3d8gles_SetVirtualBackbuffer(s_gxDrsBaseW, s_gxDrsBaseH, scaledW, scaledH, s_gxDrsBaseGsr ? 1 : 0) != 0;
+	if (ok)
+	{
+		fprintf(stderr, "INFO: DRS scene target %dx%d rendered at %dx%d (%d%% of the GX_UPSCALE base %d%%)\n",
+			s_gxDrsBaseW, s_gxDrsBaseH, scaledW, scaledH, effective, s_gxDrsBasePercent);
+		fflush(stderr);
+	}
+	return ok;
+#else
+	(void)percent;
+	return false;
 #endif
 }
 

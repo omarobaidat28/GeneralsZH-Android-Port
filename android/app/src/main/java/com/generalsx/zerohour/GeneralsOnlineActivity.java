@@ -135,6 +135,22 @@ public class GeneralsOnlineActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // GeneralsX @feature Android port 21/10/2026 GXOnlineGate (STRICT device gate): a
+        // device that failed the engine's startup benchmark is hard-blocked from
+        // GeneralsOnline. Read the same marker the engine wrote and
+        // (SetupActivity reads it too): show the message, never open the login UI.
+        // Exactly matches the engine's refusal in OnlineServices_Init.cpp OnLogin().
+        {
+            java.io.File marker = new java.io.File(
+                SetupActivity.getSavedGamePathStatic(this), "gx_online_blocked.txt");
+            if (marker.exists()) {
+                android.widget.Toast.makeText(this,
+                    getString(R.string.online_blocked_by_device_gate),
+                    android.widget.Toast.LENGTH_LONG).show();
+                finish();
+                return;
+            }
+        }
         // GeneralsX @feature Android port 18/10/2026 The launcher's appearance (ThemeHelper).
         ThemeHelper.apply(this);
         super.onCreate(savedInstanceState);

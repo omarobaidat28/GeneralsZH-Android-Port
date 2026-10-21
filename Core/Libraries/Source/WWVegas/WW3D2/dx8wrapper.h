@@ -537,6 +537,19 @@ public:
 	// upscaled to the screen here, and everything after it -- the interface, the cursor -- is drawn at
 	// the screen's full resolution. No-op otherwise.
 	static void					Upscale_Scene_Begin_UI();
+	// GeneralsX @feature Android port 21/10/2026 Dynamic resolution scaling (DRS). The controller in
+	// SDL3GameEngine.cpp measures the real GameLogic::update() tick cost in-game and, when it drifts
+	// over budget, lowers the SCENE render target through d3d8gles_SetVirtualBackbuffer in 10% steps
+	// (floor 50%): the engine keeps the game's logical ResolutionWidth/Height (screens, windows, the
+	// finger-hit-test pillarbox rect all keep their coordinates) -- only the scene's pixel budget
+	// shrinks, upscaled back at present with the launcher's SGSR/bilinear setting, and -- because the
+	// virtual backbuffer's scene/UI split engages the moment the target is below the window -- the
+	// interface, cursor and superweapon timers keep full-resolution pixels. percent is relative to the
+	// launcher's GX_UPSCALE base (100 on native settings); e.g. base 59 with DRS 90 renders the scene
+	// at 53%. Requests outside 1..100 are ignored; the native GLES virtual-backbuffer backend only
+	// (DXVK has no runtime re-sizeable scene target here -- see the report). Returns true when the
+	// target was reapplied.
+	static bool					Pillarbox_DRS_Set_Percent(int percent);
 	static void					Pillarbox_Process_Resize();
 
 	// for depth map support KJM V

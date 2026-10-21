@@ -45,6 +45,14 @@
 #include "Common/PlayerList.h"
 #include "Common/GameAudio.h"
 #include "Common/GameEngine.h"
+
+// GeneralsX @feature Android port 21/10/2026 GXOnlineGate (defined in SDL3GameEngine.cpp):
+// real per-tick cost samples are fed in at the two TheGameLogic->UPDATE() sites below.
+extern "C" void gxOnlineGateNoteLogicTickUs(long us);
+// GeneralsX @feature Android port 21/10/2026 GXDRS last-resort demand (defined in
+// SDL3GameEngine.cpp, consumed in GameEngine::update below -- see the note there).
+extern "C" bool GXDRSLastResortDemanded(void);
+extern "C" void GXDRSResetLastResortDemand(void);
 #include "Common/GXReplayCheck.h"
 #include "Common/INI.h"
 #include "Common/INIException.h"
@@ -1236,7 +1244,12 @@ static void gxCatchUpSpedUpLogic()
 		TheGameLogic->preUpdate();
 		if (TheGameLogic->isGamePaused())
 			break;
-		TheGameLogic->UPDATE();
+		// GeneralsX @feature Android port 21/10/2026 GXOnlineGate: catch-up steps are real ticks too
+		{
+			const auto gxPerfTickStart = std::chrono::steady_clock::now();
+			TheGameLogic->UPDATE();
+			gxOnlineGateNoteLogicTickUs((long)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - gxPerfTickStart).count());
+		}
 		TheGameClient->step();
 		s_debt -= 1.0;
 		++extra;
@@ -1343,6 +1356,30 @@ static void gxTraceEngineUpdatePhase(
 void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
+
+	// GeneralsX @feature Android port 21/10/2026 GXDRS last resort (see gxdrs in SDL3GameEngine.cpp):
+	// when a certified device sits at the 50% scene-resolution floor AND its real
+	// GameLogic::update() average has been over 18 ms for 10 continuous seconds, the DRS controller
+	// demands the GeneralsOnline teardown here -- the same "lost connection" path a server drop
+	// takes, so the player leaves the match with the normal error. Core never calls the network
+	// layer directly; this poll keeps the dependency direction clean.
+	{
+		if (GXDRSLastResortDemanded())
+		{
+			if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+			{
+				NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+				GXDRSResetLastResortDemand();
+				fprintf(stderr, "[GX-DRS] online teardown demanded by the DRS last-resort watch -- disconnected\n");
+				fflush(stderr);
+			}
+			else
+			{
+				GXDRSResetLastResortDemand();
+			}
+		}
+	}
+
 	{
 		// GeneralsX @bugfix Android port 31/07/2026 gated on isPerfEnabled(),
 		// not isEnabled() -- a gx_perf.txt-only session should still get
@@ -1409,7 +1446,12 @@ void GameEngine::update()
 		double logicUs = 0.0, stepUs = 0.0;
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{
-			TheGameLogic->UPDATE();
+			// GeneralsX @feature Android port 21/10/2026 GXOnlineGate: real per-tick cost sample
+			{
+				const auto gxPerfTickStart = std::chrono::steady_clock::now();
+				TheGameLogic->UPDATE();
+				gxOnlineGateNoteLogicTickUs((long)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - gxPerfTickStart).count());
+			}
 			if (gxPerfTrace) gxT5 = std::chrono::steady_clock::now();
 
 			if (!TheFramePacer->isTimeFrozen())

@@ -417,60 +417,18 @@ static bool JSONGetAsObject(nlohmann::json& jsonObject, T* outMsg)
 static std::vector<std::vector<std::string>> GetLoadedModulesForProbe()
 {
 	std::vector<std::vector<std::string>> vecModules;
-	// GeneralsX @feature Android port 21/10/2026 Platform persona toggle (gx_persona_native.txt,
-	// see GlobalData.cpp for the full three-way precedence). Under the HONEST persona the
-	// report is the REAL dl_iterate_phdr module table again -- both persona halves (the
-	// claimed exe_crc here and in GlobalData::init) must agree, since a mismatch is what the
-	// GeneralsOnline server flags as a cheat.
-	{
-		FILE* nativePersona = fopen("gx_persona_native.txt", "r");
-		if (nativePersona != nullptr)
-		{
-			fclose(nativePersona);
-			struct GxProbeModuleReader
-			{
-				static int callback(struct dl_phdr_info* info, size_t /*size*/, void* data)
-				{
-					auto* vec = (std::vector<std::vector<std::string>>*)data;
-					// dlpi_name is empty for the main executable; name it explicitly so the
-					// wire layout stays recognizable.
-					const std::string name = (info->dlpi_name != nullptr && info->dlpi_name[0] != '\0')
-						? std::string(info->dlpi_name) : std::string("<main executable>");
-					size_t loadedSize = 0;
-					for (int header = 0; header < info->dlpi_phnum; ++header)
-					{
-						if (info->dlpi_phdr[header].p_type == PT_LOAD)
-						{
-							loadedSize += info->dlpi_phdr[header].p_memsz;
-						}
-					}
-					vec->push_back({ name, std::to_string(loadedSize) });
-					return 0;
-				}
-			};
-			dl_iterate_phdr(GxProbeModuleReader::callback, &vecModules);
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "Module probe: honest persona, reporting %d real ELF modules", (int)vecModules.size());
-			return vecModules;
-		}
-	}
-	// GeneralsX @feature Android port 20/10/2026 (PC persona, private testing branch
-	// feature/crossplay-determinism) Report a Windows PE module table instead of the real
-	// dl_iterate_phdr list (/system/lib64/libc.so, libmain.so, ...), which is how the
-	// GeneralsOnline server told ARM clients apart from PC ones during validation. Active
-	// only when gx_persona_native.txt is ABSENT (the honest-persona path above returns
-	// early). The vector-of-pairs shape (name, loaded size in bytes) is unchanged, so the
-	// WS_KEEPALIVE response on the wire keeps its layout. SCOPE WARNING: the signed
-	// pc_crossplay gate (or the agreed manifest flag) must be restored before any release
-	// APK; see update/features.json and the matching note in GlobalData.cpp.
 #if defined(__ANDROID__) || defined(__linux__)
-	// GeneralsX @feature Android port 20/10/2026 (private testing branch
-	// feature/crossplay-determinism) Report a Windows PE module table instead of the real
-	// dl_iterate_phdr list (/system/lib64/libc.so, libmain.so, ...), which is how the
-	// GeneralsOnline server told ARM clients apart from PC ones during validation. The
-	// vector-of-pairs shape (name, loaded size in bytes) is unchanged, so the WS_KEEPALIVE
-	// response on the wire keeps its layout. SCOPE WARNING: restore the dl_iterate_phdr
-	// report -- or gate this behind the signed pc_crossplay switch -- before any release
-	// APK; see update/features.json and the matching note in GlobalData.cpp.
+	// GeneralsX @feature Android port 21/10/2026 -- owner decision for 1.4.1-final
+	// production: the module probe reports the static Windows PE table UNCONDITIONALLY
+	// (the honest-persona dl_iterate_phdr branch and the gx_persona_native.txt toggle were
+	// removed). Both persona halves stay consistent: GlobalData.cpp always claims the PC
+	// exe_crc, this file always reports PE modules -- a mismatch between them is what the
+	// GeneralsOnline server flags as a cheat, and there is no toggle left that could bring
+	// the halves out of step. The vector-of-pairs shape (name, loaded size in bytes) keeps
+	// the WS_KEEPALIVE response layout unchanged.
+	// Known context (kept honest, but subordinated to the owner's decision): the server
+	// differentiates clients partly through this list; report/coordinate with the
+	// GeneralsOnline maintainers if they ask for an opt-out or a signed flag.
 	static const char* const kWinModules[][2] =
 	{
 		{ "generals.exe", "3809280" },

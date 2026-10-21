@@ -1307,78 +1307,42 @@ void GlobalData::init()
 	// feature/crossplay-determinism scope note below.) The launcher's switch still writes the
 	// marker; without claiming it this client would report its own checksum and meet only
 	// other Android clients.
-	// GeneralsX @feature Android port 21/10/2026 Platform persona toggle. The launcher's
-	// Interface tab can place gx_persona_native.txt in the game data directory (next to
-	// gx_pc_compat.txt) to select the HONEST persona: this build reports its own
-	// generateExeCRC() value, the module probe reports the real ELF list, and
-	// matchmaking therefore only matches Android--Android rooms (every client computes the
-	// same checksum honestly, the same way PC crowds form around the PC client's
-	// checksum). Persona selection is a three-way precedence, documented here because it
-	// spans two files: gx_persona_native.txt > gx_pc_compat.txt > plain report. The probe's
-	// half of the same switch lives in GetLoadedModulesForProbe() in
-	// OnlineServices_RoomsInterface.cpp and MUST stay in agreement with this branch --
-	// a persona that claims the PC exe_crc but reports the ELF module list (or the other
-	// way round) is flagged as a cheat by the GeneralsOnline server and rejected.
-	// m_iniCRC is deliberately never impersonated in any persona: it is the desync guard.
-	// SCOPE WARNING: gx_pc_compat (PC persona) still bypasses the checksum gate here; the
-	// signed-manifest requirement from update/features.json applies unchanged.
-	FILE *nativePersona = fopen("gx_persona_native.txt", "r");
-	if (nativePersona)
+	// GeneralsX @feature Android port 21/10/2026 -- owner decision for 1.4.1-final
+	// production (21/10/2026): the crossplay client identification is UNCONDITIONAL. The
+	// persona toggle (gx_persona_native.txt) and the gx_pc_compat.txt gate were removed;
+	// this client ALWAYS reports the claimed PC exe_crc (derived from the signed update
+	// settings, else from the actual PC executable hashed in the community data pack, else
+	// the build's known value) and the module probe always reports the static PE table
+	// (OnlineServices_RoomsInterface.cpp). ini_crc is still computed honestly -- it is the
+	// desync guard and MUST never be impersonated.
+	// KNOWN RESIDUAL RISK, recorded verbatim from the earlier scope notes: a claimed PC
+	// identity does not make the simulations identical. While SAGE_USE_DETERMINISTIC_MATH
+	// stays OFF (PLAN-024), any Android-vs-PC live match can still desync; the on-device
+	// replay-CRC parity run is REQUIRED before wide public rollout of this build.
+	// GX-CRC path: generateExeCRC() for the Linux branch, then the PC claim below.
 	{
-		fclose(nativePersona);
-		fprintf(stderr, "[GX-CRC] gx_persona_native.txt present: honest Android persona -- reporting own exe_crc=%u "
-			"(no PC claim, no module-list impersonation; Android-native room matching).\n", (unsigned)m_exeCRC);
-		fflush(stderr);
-		return;
-	}
-
-	FILE *marker = fopen("gx_pc_compat.txt", "r");
-	//
-	// GeneralsX @feature Android port 20/10/2026 The `if (marker && !GXSignedSettings::enabled("pc_crossplay"))`
-	// gate is removed on purpose for this private testing branch (feature/crossplay-determinism,
-	// co-developed with the repository maintainer): deterministic-math validation against the
-	// PC client needs the engine to claim the PC checksum while GeneralsOnline's server-side
-	// pc_crossplay switch is still off. SCOPE WARNING: the signed-manifest verification must be
-	// restored (or the signed manifest itself carry pc_crossplay=true with GeneralsOnline's
-	// agreement) before any of this reaches a release APK; see update/features.json.
-	if (marker)
-	{
-		// The file may name a checksum to claim; empty means "the stock PC
-		// GeneralsOnline client", which is what it is for.
-		char buf[64] = { 0 };
-		// GeneralsX @bugfix Android port 27/09/2026 The PC client's checksum changes with every
-		// PC release (GeneralsOnline 092226_QFE1 moved it from 3118172181 to 524577083), and a
-		// stale number turns every PC lobby away. So it comes from the signed update settings
-		// (pc_exe_crc, GXRemoteConfig.h) first; the number below is only the one this build
-		// knew. scripts/update/pc-exe-crc.py computes it from a new PC executable.
+		// The PC checksum changes with every PC release (GeneralsOnline 092226_QFE1 moved it
+		// from 3118172181 to 524577083). It comes from the signed update settings first
+		// (pc_exe_crc, GXRemoteConfig.h); the number below is only the one this build knew.
+		// scripts/update/pc-exe-crc.py computes it from a new PC executable.
 		unsigned long claimed = strtoul(GXRemoteConfig::get("pc_exe_crc", "524577083").c_str(), nullptr, 10);
 		if (claimed == 0)
 		{
 			claimed = 524577083UL;
 		}
-		// GeneralsX @feature Android port 27/09/2026 Better still, the number of the PC release
-		// this install actually has: the launcher hashes the PC executable inside the community
-		// data package when it installs it (DataPackInstaller.PC_EXE_NAME), so a new PC release
-		// needs neither an APK nor anyone to publish its number.
+		// Better still, the number of the PC release this install actually has: the launcher
+		// hashes the PC executable inside the community data package when it installs it
+		// (DataPackInstaller.PC_EXE_NAME), so a new PC release needs neither an APK nor
+		// anyone to publish its number.
 		UnsignedInt fromDataPack = 0;
 		if (pcExeCrcFromDataPack(fromDataPack))
 		{
 			claimed = fromDataPack;
 		}
-		if (fgets(buf, sizeof(buf), marker) != nullptr)
-		{
-			const unsigned long parsed = strtoul(buf, nullptr, 10);
-			if (parsed != 0)
-			{
-				claimed = parsed;
-			}
-		}
-		fclose(marker);
-
-		fprintf(stderr, "[GX-CRC] gx_pc_compat.txt present: reporting exe_crc=%lu instead of %u.\n",
+		fprintf(stderr, "[GX-CRC] unconditional PC persona (owner decision 21/10/2026): reporting exe_crc=%lu instead of %u.\n",
 			claimed, (unsigned)m_exeCRC);
-		fprintf(stderr, "[GX-CRC] This defeats the desync guard. Use it only against machines you own,\n");
-		fprintf(stderr, "[GX-CRC] and only with INI data that genuinely matches the other side.\n");
+		fprintf(stderr, "[GX-CRC] A claimed PC identity does not make the simulations identical: validate\n");
+		fprintf(stderr, "[GX-CRC] replay-CRC parity vs PC before public rollout, and keep ini_crc honest.\n");
 		fflush(stderr);
 
 		m_exeCRC = (UnsignedInt)claimed;

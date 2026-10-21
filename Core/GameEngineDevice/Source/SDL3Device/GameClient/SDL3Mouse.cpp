@@ -745,6 +745,17 @@ void SDL3Mouse::capture(void)
 	// SDL3: Grab mouse (confine to window)
 	SDL_SetWindowMouseGrab(m_Window, true);
 
+	// GeneralsX @feature Android port 21/10/2026 (community mouse feedback): a capture
+	// session in this engine is a camera drag / edge-scroll window. Enable SDL3's
+	// window-relative mouse mode for its duration: the pointer can never interleave with
+	// UI hover during a drag (it stays owned by this window even when the finger/mouse
+	// leaves the surface edge), and SDL still reports absolute window coordinates in the
+	// event (x/y) ALONGSIDE the deltas (xrel/yrel), so translateMotionEvent()'s existing
+	// deltaPos handling and scaleMouseCoordinates()'s absolute scaling both remain valid.
+	// Includes right-click command drags and middle-click scroll sessions, which route
+	// through the same capture window.
+	SDL_SetWindowRelativeMouseMode(m_Window, true);
+
 	m_IsCaptured = true;
 
 	// @fix Notify base class so isCursorCaptured() returns true.
@@ -764,6 +775,9 @@ void SDL3Mouse::releaseCapture(void)
 	SDL_CaptureMouse(false);
 	if (m_Window) {
 		SDL_SetWindowMouseGrab(m_Window, false);
+		// GeneralsX @feature Android port 21/10/2026 see comment in capture(): relative
+		// mode is a per-capture-session state; UI needs the absolute cursor back on release.
+		SDL_SetWindowRelativeMouseMode(m_Window, false);
 	}
 
 	m_IsCaptured = false;

@@ -123,6 +123,8 @@ static NameKeyType skirmishID = NAMEKEY_INVALID;
 // its transitions in PatchINI.big), and the executable that shipped with it is the only
 // thing that ever handled it -- so on this engine the button did nothing when pressed.
 static NameKeyType customMissionID = NAMEKEY_INVALID;
+// GeneralsX @feature Android port 21/10/2026 GXOnlineGate engine-connector (defined in SDL3GameEngine.cpp).
+extern "C" bool GXOnlineGateFilePresent(void);
 static NameKeyType onlineID = NAMEKEY_INVALID;
 static NameKeyType networkID = NAMEKEY_INVALID;
 static NameKeyType optionsID = NAMEKEY_INVALID;
@@ -675,6 +677,19 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 	buttonMultiPlayer = TheWindowManager->winGetWindowFromId( parentMainMenu, buttonMultiPlayerID );
 	buttonSkirmish = TheWindowManager->winGetWindowFromId( parentMainMenu, skirmishID );
 	buttonOnline = TheWindowManager->winGetWindowFromId( parentMainMenu, onlineID );
+
+	// GeneralsX @feature Android port 21/10/2026 GXOnlineGate: a device that fails the
+	// startup benchmark (gx_online_blocked.txt, see SDL3GameEngine.cpp) never gets an
+	// online session, so the main menu's Online button is disabled up front; the launcher
+	// shows the explanatory message ("Device fails 60Hz/50FPS requirement...").
+	{
+		if (buttonOnline != nullptr && GXOnlineGateFilePresent())
+		{
+			buttonOnline->winEnable(FALSE);
+			fprintf(stderr, "[GX-PERFGATE] MainMenu Online button disabled (device performance gate)\n");
+			fflush(stderr);
+		}
+	}
 	buttonNetwork = TheWindowManager->winGetWindowFromId( parentMainMenu, networkID );
 	buttonOptions = TheWindowManager->winGetWindowFromId( parentMainMenu, optionsID );
 	buttonExit = TheWindowManager->winGetWindowFromId( parentMainMenu, exitID );

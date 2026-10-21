@@ -923,10 +923,32 @@ void NGMP_OnlineServicesManager::StartDownloadUpdate(std::function<void(void)> c
 
 }
 
+// GeneralsX @feature Android port 21/10/2026 GXOnlineGate (STRICT production device gate,
+// owner decision 21/10/2026): weak devices are hard-blocked from GeneralsOnline. The
+// benchmark verdict is persisted by the engine as <userdata>/gx_online_blocked.txt (see
+// SDL3GameEngine.cpp); while it exists -- or while the 5-second startup benchmark window is
+// still running -- the manager physically refuses to open the WebSocket session. The
+// in-engine Online button (MainMenu.cpp) and the launcher's Online entries (SetupActivity /
+// GeneralsOnlineActivity, Java) read the same file, so all three layers fall back together.
+// SCOPE NOTE: this is strictly a performance/lag gate -- it must never be repurposed as a
+// device fingerprint without user-visible disclosure.
+extern "C" bool GXOnlineGateRefusesOnline(void);
+static bool gxOnlineMeansBlocked()
+{
+	return GXOnlineGateRefusesOnline();
+}
+
 void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szWSAddr, std::function<void(void)> fnWebsocketConnectedCallback)
 {
 	if (loginResult == ELoginResult::Success)
 	{
+		if (gxOnlineMeansBlocked())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "GeneralsOnline connect refused: device failed the startup performance gate (gx_online_blocked.txt). LAN/Skirmish only.");
+			fprintf(stderr, "[GX-PERFGATE] Online login refused: device fails the 50 FPS / 13 ms tick requirement. Online disabled to prevent server lag.\n");
+			fflush(stderr);
+			return;
+		}
 		// connect to WS
 		m_pWebSocket = std::make_shared<WebSocket>();
 
