@@ -1307,6 +1307,31 @@ void GlobalData::init()
 	// feature/crossplay-determinism scope note below.) The launcher's switch still writes the
 	// marker; without claiming it this client would report its own checksum and meet only
 	// other Android clients.
+	// GeneralsX @feature Android port 21/10/2026 Platform persona toggle. The launcher's
+	// Interface tab can place gx_persona_native.txt in the game data directory (next to
+	// gx_pc_compat.txt) to select the HONEST persona: this build reports its own
+	// generateExeCRC() value, the module probe reports the real ELF list, and
+	// matchmaking therefore only matches Android--Android rooms (every client computes the
+	// same checksum honestly, the same way PC crowds form around the PC client's
+	// checksum). Persona selection is a three-way precedence, documented here because it
+	// spans two files: gx_persona_native.txt > gx_pc_compat.txt > plain report. The probe's
+	// half of the same switch lives in GetLoadedModulesForProbe() in
+	// OnlineServices_RoomsInterface.cpp and MUST stay in agreement with this branch --
+	// a persona that claims the PC exe_crc but reports the ELF module list (or the other
+	// way round) is flagged as a cheat by the GeneralsOnline server and rejected.
+	// m_iniCRC is deliberately never impersonated in any persona: it is the desync guard.
+	// SCOPE WARNING: gx_pc_compat (PC persona) still bypasses the checksum gate here; the
+	// signed-manifest requirement from update/features.json applies unchanged.
+	FILE *nativePersona = fopen("gx_persona_native.txt", "r");
+	if (nativePersona)
+	{
+		fclose(nativePersona);
+		fprintf(stderr, "[GX-CRC] gx_persona_native.txt present: honest Android persona -- reporting own exe_crc=%u "
+			"(no PC claim, no module-list impersonation; Android-native room matching).\n", (unsigned)m_exeCRC);
+		fflush(stderr);
+		return;
+	}
+
 	FILE *marker = fopen("gx_pc_compat.txt", "r");
 	//
 	// GeneralsX @feature Android port 20/10/2026 The `if (marker && !GXSignedSettings::enabled("pc_crossplay"))`

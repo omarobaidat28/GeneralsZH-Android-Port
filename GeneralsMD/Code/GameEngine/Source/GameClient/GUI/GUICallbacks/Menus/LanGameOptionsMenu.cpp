@@ -922,6 +922,9 @@ void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 		if (it != TheMapCache->end())
 		{
 			TheLAN->GetMyGame()->getSlot(0)->setMapAvailability(true);
+			// GeneralsX @feature Android port 21/10/2026 (map-cache lazy loading) materialize
+			// the deferred CRC before broadcasting it (see ensureMapChecksum in MapUtil.h).
+			TheMapCache->ensureMapChecksum(it->second);
 			TheLAN->GetMyGame()->setMapCRC( it->second.m_CRC );
 			TheLAN->GetMyGame()->setMapSize( it->second.m_filesize );
 

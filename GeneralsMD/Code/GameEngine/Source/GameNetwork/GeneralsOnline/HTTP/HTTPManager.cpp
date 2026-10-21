@@ -2,6 +2,37 @@
 #include "GameNetwork/GeneralsOnline/NGMP_include.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_Init.h"
 
+// GeneralsX @feature Android port 21/10/2026 Network & ping optimization: gives access to
+// the socket-level options set in GxNetworkSocketConfigure() below.
+#include <sys/socket.h>
+#include <netinet/tcp.h>
+
+// GeneralsX @feature Android port 21/10/2026 See HTTPManager.h for rationale. Mirrors what
+// the WebSocket connect path registers in OnlineServices_RoomsInterface.cpp, so every
+// online socket the client opens gets the same treatment.
+curl_socket_t GxNetworkSocketConfigure(void* /*clientp*/, curlsocktype /*purpose*/, struct curl_sockaddr* addr)
+{
+	const curl_socket_t sock = socket(addr->family, addr->socktype, addr->protocol);
+	if (sock == CURL_SOCKET_BAD)
+	{
+		return CURL_SOCKET_BAD;
+	}
+	if (addr->socktype == SOCK_STREAM)
+	{
+		// Disable Nagle's algorithm: every keepalive ping, room-list request and lobby
+		// message is a small frame that must not wait for ACK piggybacking.
+		const int noDelay = 1;
+		(void)setsockopt((int)sock, IPPROTO_TCP, TCP_NODELAY, &noDelay, sizeof(noDelay));
+	}
+	// 512 KB on each side (2x libcurl's default): during a network stall the kernel keeps
+	// buffering, so a burst after reconnect does not overflow the receive queue and drop
+	// sockets' worth of WS frames / HTTP chunks.
+	const int bufSize = 512 * 1024;
+	(void)setsockopt((int)sock, SOL_SOCKET, SO_RCVBUF, &bufSize, sizeof(bufSize));
+	(void)setsockopt((int)sock, SOL_SOCKET, SO_SNDBUF, &bufSize, sizeof(bufSize));
+	return sock;
+}
+
 HTTPManager::HTTPManager() noexcept
 {
 	

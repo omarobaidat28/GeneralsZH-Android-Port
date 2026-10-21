@@ -1228,6 +1228,9 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 		if (it != TheMapCache->end())
 		{
 			hostSlot->setMapAvailability(TRUE);
+			// GeneralsX @feature Android port 21/10/2026 (map-cache lazy loading)
+			// materialize the deferred CRC before broadcasting it.
+			TheMapCache->ensureMapChecksum(it->second);
 			game->setMapCRC( it->second.m_CRC );
 			game->setMapSize( it->second.m_filesize );
 

@@ -293,6 +293,12 @@ void HTTPRequest::PlatformStartRequest()
 		curl_easy_setopt(m_pCURL, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
 		curl_easy_setopt(m_pCURL, CURLOPT_USERAGENT, "GeneralsOnline Client");
 
+		// GeneralsX @feature Android port 21/10/2026 Network & ping optimization: every HTTP
+		// socket gets TCP_NODELAY and 512 KB kernel buffers (see GxNetworkSocketConfigure in
+		// HTTPManager.cpp). Small lobby/room-list requests must not sit in Nagle queues, and
+		// mobile-jitter bursts need receive headroom.
+		curl_easy_setopt(m_pCURL, CURLOPT_OPENSOCKETFUNCTION, GxNetworkSocketConfigure);
+
 		
 		// GeneralsX @bugfix Android port 10/07/2026 these curl options are all
 		// documented as taking a `long` -- m_timeoutMS/Network_GetHTTPVersionForCurl()

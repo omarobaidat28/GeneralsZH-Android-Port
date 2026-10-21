@@ -112,6 +112,10 @@ void NGMPGame::SyncWithLobby(LobbyEntry& lobby)
 	if (itOfficial != TheMapCache->end())
 	{
 		TheNGMPGame->getGameSpySlot(0)->setMapAvailability(TRUE);
+		// GeneralsX @feature Android port 21/10/2026 (map-cache lazy loading, ensureMapChecksum
+		// in MapUtil) the CRC is now deferred until a consumer needs it; lobby sync is the
+		// first one on the online path, so materialize before broadcast.
+		TheMapCache->ensureMapChecksum(itOfficial->second);
 		TheNGMPGame->setMapCRC(itOfficial->second.m_CRC);
 		TheNGMPGame->setMapSize(itOfficial->second.m_filesize);
 
@@ -120,6 +124,8 @@ void NGMPGame::SyncWithLobby(LobbyEntry& lobby)
 	else if (itCustom != TheMapCache->end())
 	{
 		TheNGMPGame->getGameSpySlot(0)->setMapAvailability(TRUE);
+		// GeneralsX @feature Android port 21/10/2026 see the official branch above.
+		TheMapCache->ensureMapChecksum(itCustom->second);
 		TheNGMPGame->setMapCRC(itCustom->second.m_CRC);
 		TheNGMPGame->setMapSize(itCustom->second.m_filesize);
 

@@ -690,6 +690,20 @@ NetworkMesh::NetworkMesh()
 	fprintf(stderr, "DEBUG-P2P: NetworkMesh ctor GameNetworkingSockets_Init OK\n");
 	fflush(stderr);
 
+	// GeneralsX @feature Android port 21/10/2026 Network & ping optimization (tester-reported
+	// latency feel in the latest build). GNS defaults its per-surface send buffer to ~512 KB
+	// and its receive buffer to 1 MB; under mobile-network jitter (a one-second stall is
+	// routine on cellular) a 60 Hz sim pushing ~30 KB/frame can overflow the default
+	// receive window on the assembled-message queue and the connection pays for it with
+	// dropped-then-replayed state. 4 MB on both sides gives roughly two seconds of full-rate
+	// headroom. These are GLOBAL values, so every subsequently created P2P/TURN connection
+	// inherits them (this runs before any connection exists in the ctor flow).
+	{
+		const int32_t kGxMeshBufferBytes = 4 * 1024 * 1024;
+		SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_SendBufferSize, kGxMeshBufferBytes);
+		SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_RecvBufferSize, kGxMeshBufferBytes);
+	}
+
 	// TODO_STEAM: Dont hardcode, get everything from service
 	// GeneralsX @bugfix Android port 27/09/2026 Upstream d22ef3439 (GeneralsOnline, 24/09/2026):
 	// every entry must resolve to distinct addresses. stun1-4.l.google.com resolve to the same

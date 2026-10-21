@@ -678,7 +678,18 @@ Bool MapCache::addMap(
 		// Found the map in our cache. Check to see if it has changed.
 		const MapMetaData& md = it->second;
 
-		if (md.m_filesize == fileInfo.sizeLow && md.m_CRC != 0)
+		// GeneralsX @feature Android port 21/10/2026 (map-cache lazy loading)
+		// Unchanged-detection used to require md.m_CRC != 0, which forced every scan to
+		// re-materialize any deferred checksum and re-read the file below. Size + timestamp
+		// equality (the exact values addMap() persisted for this path) is the cheap and
+		// correct staleness test; only a size/timestamp mismatch means the file changed and
+		// needs a fresh parse. A CRC of 0 now means "deferred, not computed yet" (see
+		// ensureMapChecksum()) -- a genuine CRC of 0 is rematerialized once per session at
+		// most, on the rare map that hashes to zero.
+		if (md.m_filesize == fileInfo.sizeLow
+			&& (md.m_CRC != 0
+				|| (md.m_timestamp.m_highTimeStamp == fileInfo.timestampHigh
+					&& md.m_timestamp.m_lowTimeStamp == fileInfo.timestampLow)))
 		{
 			// Force a lookup so that we don't display the English localization in all builds.
 			if (md.m_nameLookupTag.isEmpty())
@@ -738,7 +749,20 @@ Bool MapCache::addMap(
 	md.m_timestamp.m_lowTimeStamp = fileInfo.timestampLow;
 	md.m_supplyPositions = m_supplyPositions;
 	md.m_techPositions = m_techPositions;
-	md.m_CRC = calcCRC(fname);
+	// GeneralsX @feature Android port 21/10/2026 (map-cache lazy loading)
+	// This used to be `md.m_CRC = calcCRC(fname);` -- a second full-file read on top of
+	// loadMap()'s full parse. For a first-ever scan of ~1000 community maps that is roughly
+	// 1000 extra whole-file reads (the entire reported 1000-map load/crash problem), paid
+	// just to checksum files whose bytes we had just parsed. The checksum is now DEFERRED:
+	// m_CRC stays 0 ("not computed yet") until the match/lobby code actually needs to
+	// broadcast it, at which point ensureMapChecksum() computes it once and caches the
+	// result. numPlayers, waypoints, supply/tech positions and display names above remain
+	// exact -- they come from the loadMap() parse, which is still required for the
+	// player-bucket list filters. INI round-trips persist fileCRC = 0 for deferred entries,
+	// and the unchanged-detection branch above keeps them deferred on later scans via
+	// size+timestamp equality.
+	//md.m_CRC = calcCRC(fname);
+	md.m_CRC = 0;
 
 	Bool exists = false;
 	AsciiString nameLookupTag = worldDict.getAsciiString(TheKey_mapName, &exists);
@@ -1194,6 +1218,28 @@ const MapMetaData *MapCache::findMap(AsciiString mapName)
 }
 
 // ------------------------------------------------------------------------------------------------
+// GeneralsX @feature Android port 21/10/2026 (map-cache lazy loading) Compute a deferred
+// checksum exactly when gameplay needs it (map selection in LAN/skirmish/lobby menus and the
+// NGMP lobby sync are the only consumers -- see their setMapCRC sites). No-ops for anything
+// already materialized; persists the result in the cache entry so it is computed at most
+// once per session per map. calcCRC() is the engine's own whole-file CRC-32, identical to
+// what addMap() used to compute eagerly, so online CRC agreement is bit-for-bit unchanged.
+// ------------------------------------------------------------------------------------------------
+void MapCache::ensureMapChecksum(MapMetaData &md)
+{
+	if (md.m_CRC != 0)
+	{
+		return;
+	}
+	// m_fileName is the canonical lowercase portable path used as the cache key -- the same
+	// form TheFileSystem resolves at game start, so the CRC is computed over the same bytes
+	// the match will actually load.
+	const UnsignedInt crc = calcCRC(md.m_fileName);
+	md.m_CRC = crc;
+	DEBUG_LOG(("MapCache::ensureMapChecksum: materialized deferred CRC %u for '%s'", crc, md.m_fileName.str()));
+}
+
+// ------------------------------------------------------------------------------------------------
 /** Embed the pristine map into the xfer stream */
 // ------------------------------------------------------------------------------------------------
 static void copyFromBigToDir( const AsciiString& infile, const AsciiString& outfile )
@@ -1279,6 +1325,41 @@ Image *getMapPreviewImage( AsciiString mapName )
 	if(!image)
 	{
 
+		// GeneralsX @feature Android port 21/10/2026 (preview pairing) Community map packs
+		// ship their preview as a loose TGA next to the .map, but the leaf's letter case
+		// almost never matches the .map leaf exactly (MapName.map with mapname.tga,
+		// preview.tga, Preview.TGA, ...). The old code only ever probed `<leaf>.tga` with the
+		// exact case and fell through to the question-mark placeholder. Resolve the map's
+		// folder once and scan it for a case-insensitive leaf or preview match instead.
+		if(!TheFileSystem->doesFileExist(tgaName.str()))
+		{
+			const char* sep = findLastPathSeparator(mapName);
+			if (sep != nullptr)
+			{
+				AsciiString dirPath(mapName.str(), sep - mapName.str());
+				// exact-leaf match (case-insensitively), then a plain preview.tga sidecar
+				AsciiString mapLeaf(sep + 1); // <leaf>.map
+				mapLeaf.truncateBy(4); // ".map"
+				mapLeaf.toLower();
+				FilenameList tgaFiles;
+				TheFileSystem->getFileListInDirectory(dirPath, "*.tga", tgaFiles, FALSE);
+				for (const AsciiString& tgaFile : tgaFiles)
+				{
+					const char* tgaSep = findLastPathSeparator(tgaFile);
+					const char* tgaLeafName = (tgaSep != nullptr) ? tgaSep + 1 : tgaFile.str();
+					AsciiString tgaLeaf(tgaLeafName);
+					tgaLeaf.truncateBy(4); // ".tga"
+					tgaLeaf.toLower();
+					if (tgaLeaf == mapLeaf || tgaLeaf == "preview")
+					{
+						tgaName = dirPath;
+						tgaName.concat('/');
+						tgaName.concat(tgaLeafName);
+						break;
+					}
+				}
+			}
+		}
 		if(!TheFileSystem->doesFileExist(tgaName.str()))
 			return nullptr;
 		AsciiString mapPreviewDir;

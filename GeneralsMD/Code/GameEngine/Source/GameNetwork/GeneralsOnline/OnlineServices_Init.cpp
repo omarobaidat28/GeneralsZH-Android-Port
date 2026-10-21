@@ -1,6 +1,10 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/GeneralsOnline/HTTP/HTTPManager.h"
 #include "GameNetwork/GeneralsOnline/json.hpp"
+// GeneralsX @feature Android port 21/10/2026 Network & ping optimization: for
+// setpriority() in gxDemoteWorkerThreadScheduling() below.
+#include <sys/resource.h>
+#include <cerrno>
 #include "GameClient/MessageBox.h"
 #include "Common/FileSystem.h"
 #include "Common/file.h"
@@ -42,6 +46,24 @@ NGMP_OnlineServicesManager* NGMP_OnlineServicesManager::m_pOnlineServicesManager
 // somewhere even without the rest of that subsystem.
 bool g_bForceRelay = false;
 UnsignedInt m_exeCRCOriginal = 0;
+
+// GeneralsX @feature Android port 21/10/2026 Network & ping optimization. Demotes the
+// calling thread below the main/game thread by nudging its nice value. On Linux/Android
+// setpriority(PRIO_PROCESS, 0, ...) applies to the CALLING THREAD, not the process, so it
+// is safe to call from our worker-thread entry points. The game thread stays at the
+// process default (and SDL's audio thread stays above ours), so conversion/maintenance
+// workers can never steal a slice from the game loop or the online socket pump when the
+// scheduler gets tight on a mobile SoC. Best effort by design: an EACCES (denied) or
+// EPERM (cannot move away from an RT class) simply leaves the thread as-scheduled.
+static void gxDemoteWorkerThreadScheduling()
+{
+#if defined(__ANDROID__) || defined(__linux__)
+	if (setpriority(PRIO_PROCESS, 0, 10) != 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "gxDemoteWorkerThreadScheduling: setpriority failed (errno %d), thread stays at default priority", errno);
+	}
+#endif
+}
 
 std::thread::id NGMP_OnlineServicesManager::g_MainThreadID;
 std::mutex NGMP_OnlineServicesManager::m_ScreenshotMutex;
@@ -672,6 +694,15 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 									{
 										CHECK_WORKER_THREAD;
 
+										// GeneralsX @feature Android port 21/10/2026 Network & ping
+										// optimization: this is a pure conversion worker (D3D surface
+										// bytes -> RGB rows for the avatar upload). Demote it below
+										// the main/game thread (nice +10): on mobile SoCs a burst of
+										// screenshot conversions competes with the game loop and the
+										// online socket pump for scheduling, which reads as "ping
+										// feels worse". The conversion is latency-insensitive.
+										gxDemoteWorkerThreadScheduling();
+									
 										unsigned char* rgbData = new unsigned char[width * height * 3];
 
 										std::vector<unsigned char> vecData;

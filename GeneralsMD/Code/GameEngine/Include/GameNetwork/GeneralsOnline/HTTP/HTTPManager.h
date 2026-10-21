@@ -29,6 +29,17 @@ enum class EIPProtocolVersion
 	FORCE_IPV6 = 6
 };
 
+// GeneralsX @feature Android port 21/10/2026 Network & ping optimization (tester-reported
+// latency regressions). CURLOPT_OPENSOCKETFUNCTION callback shared by every libcurl handle
+// in the online services (HTTP requests and the WebSocket both call curl_easy_init()): it
+// (a) enables TCP_NODELAY so the game's small request/response and lobby keepalive frames
+// are never queued behind Nagle's algorithm waiting for a full segment, and (b) raises
+// SO_RCVBUF/SO_SNDBUF above the OS default so mobile-network jitter-then-burst patterns
+// (short stall, then several windowfuls) do not drop frames on the receive side. The
+// previous behavior relied on libcurl's defaults (TCP_NODELAY on, ~208 KB buffers), so
+// this is strictly a hardening + documented-guarantee change, not a wire-format one.
+curl_socket_t GxNetworkSocketConfigure(void* clientp, curlsocktype purpose, struct curl_sockaddr* addr);
+
 class HTTPManager
 {
 public:

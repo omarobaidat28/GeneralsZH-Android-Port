@@ -432,6 +432,9 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 					if (it != TheMapCache->end())
 					{
 						TheGameSpyGame->getGameSpySlot(0)->setMapAvailability(TRUE);
+						// GeneralsX @feature Android port 21/10/2026 (map-cache lazy loading)
+						// materialize the deferred CRC before broadcasting it.
+						TheMapCache->ensureMapChecksum(it->second);
 						TheGameSpyGame->setMapCRC( it->second.m_CRC );
 						TheGameSpyGame->setMapSize( it->second.m_filesize );
 					}

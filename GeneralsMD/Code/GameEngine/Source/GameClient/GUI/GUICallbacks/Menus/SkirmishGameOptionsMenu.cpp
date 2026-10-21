@@ -1334,6 +1334,10 @@ void SkirmishGameOptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 	else
 	{
+		// GeneralsX @feature Android port 21/10/2026 (map-cache lazy loading) materialize
+		// the deferred CRC before broadcasting it (findMap returns a const pointer into
+		// the non-const cache, so the const is peeled here by design).
+		TheMapCache->ensureMapChecksum(const_cast<MapMetaData&>(*md));
 		TheSkirmishGameInfo->setMapCRC(md->m_CRC);
 		TheSkirmishGameInfo->setMapSize(md->m_filesize);
 	}

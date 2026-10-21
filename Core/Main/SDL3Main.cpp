@@ -462,6 +462,89 @@ GameEngine *CreateGameEngine(void)
 	return engine;
 }
 
+//=================================================================================================
+// GeneralsX @feature Android port 21/10/2026 Virtual hotkeys / on-screen RTS control overlay
+// (kernel). The full overlay UI (transparent button strip rendered over the game viewport,
+// sized/opacity-adjusted from the launcher's Interface tab) renders in a later step; the
+// injection kernel ships first because the launcher's Interface tab needs a working tunnel
+// to light up before any pixels move. Design contract:
+//
+//   Java launcher (Interface tab)  ->  writes gx_virtual_keys.ini (enabled, opacity, scale)
+//                                      next to the engine's working directory plus a
+//                                      gx_virtual_keys.enabled marker when ON;
+//   engine-side overlay (next step)->  reads the config, lays out N buttons, each bound to
+//                                      one SDL keyboard key;
+//   every button press             ->  calls GxVirtualKeysSendKey(scancode, down) below.
+//
+// SDL_PushEvent is the payload boundary: a synthesized SDL_KeyboardEvent carrying a
+// hardware scancode is indistinguishable downstream from an event the desktop keyboard
+// backend delivered, so the engine treats on-screen buttons exactly like a physical
+// keyboard (build hotkeys Q/W/E/R, control groups 1-9, camera-jump spacebar) with zero
+// engine-side special-casing, and user rebindings keep working because they read the same
+// event queue.
+//=================================================================================================
+static bool GxVirtualKeysReadConfig(int* opacityPct, float* scale)
+{
+	int opacity = -1;
+	double dblScale = -1.0;
+	FILE* f = fopen("gx_virtual_keys.ini", "r");
+	if (f == nullptr)
+	{
+		return false;
+	}
+	char line[128];
+	while (fgets(line, sizeof(line), f) != nullptr)
+	{
+		// tiny key=value parser; '#' or ';' starts a comment
+		if (line[0] == '#' || line[0] == ';')
+		{
+			continue;
+		}
+		char key[64] = { 0 };
+		char value[64] = { 0 };
+		if (sscanf(line, "%63[^=#;=]=%63s", key, value) == 2)
+		{
+			if (strcmp(key, "opacity") == 0)
+			{
+				opacity = atoi(value);
+			}
+			else if (strcmp(key, "scale") == 0)
+			{
+				dblScale = atof(value);
+			}
+		}
+	}
+	fclose(f);
+	if (opacityPct != nullptr)
+	{
+		*opacityPct = opacity;
+	}
+	if (scale != nullptr)
+	{
+		*scale = (float)dblScale;
+	}
+	return true;
+}
+
+// Inject one key event into the engine's input queue. The overlay calls this with
+// down=true on touch-down and down=false on finger release. The event carries the fields
+// the SDL3 backend fills for a physical keyboard: the hardware scancode (layout
+// independent), the key derived from it, current modifier set, SDL_GetTicksNS() timing.
+extern "C" void GxVirtualKeysSendKey(int sdlScancode, bool down)
+{
+	SDL_Event event;
+	SDL_zero(event);
+	event.key.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+	event.key.timestamp = SDL_GetTicksNS();
+	event.key.scancode = (SDL_Scancode)sdlScancode;
+	event.key.mod = SDL_GetModState();
+	// SDL3 (3.2+): SDL_GetKeyFromScancode() is (scancode, modstate, key_events); the mod
+	// state is captured above, and no key-event synthesis is requested (we push our own).
+	event.key.key = SDL_GetKeyFromScancode((SDL_Scancode)sdlScancode, event.key.mod, false);
+	event.key.down = down;	event.key.repeat = false;
+	SDL_PushEvent(&event);
+}
+
 /**
  * main
  *

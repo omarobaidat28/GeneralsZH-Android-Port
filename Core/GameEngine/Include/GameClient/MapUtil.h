@@ -127,6 +127,15 @@ public:
 	AsciiString getMapExtension() const;
 
 	const MapMetaData *findMap(AsciiString mapName);
+	// GeneralsX @feature Android port 21/10/2026 (map-cache lazy loading) Deferred-checksum
+	// materialization. addMap() no longer re-reads every file just to compute m_CRC (the
+	// checksum is the second full-file pass on top of loadMap()'s full parse, so a cold scan
+	// of ~1000 community maps used to read every byte twice). A CRC of 0 now means "not
+	// computed yet" for cache entries; this call computes it on demand, exactly when the
+	// match/lobby code is about to broadcast it to other players, so online play never
+	// sees a dummy checksum. Callers must invoke this before reading md.m_CRC for
+	// gameplay purposes; UI code (listboxes, filters) must NOT call it.
+	void ensureMapChecksum(MapMetaData &md);
 
 	// allow us to create a set of shippable maps to be in mapcache.ini.  For use with -buildMapCache.
 	void addShippingMap(AsciiString mapName) { mapName.toLower(); m_allowedMaps.insert(mapName); }
