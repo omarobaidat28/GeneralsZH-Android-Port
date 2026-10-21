@@ -73,6 +73,8 @@ import com.google.android.material.textfield.TextInputLayout;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SetupActivity extends Activity {
 
@@ -457,6 +459,7 @@ public class SetupActivity extends Activity {
             case TAB_TOOLS:
                 buildLogsSection(page);
                 buildDiagnosticsSection(page);
+                buildMapImportSection(page);
                 break;
             case TAB_HELP:
                 buildHelpSection(page);
@@ -935,6 +938,65 @@ public class SetupActivity extends Activity {
     }
 
     // ------------------------------------------------------------ Logs entry
+
+    /**
+     * GeneralsX @feature Android port 21/10/2026 Tools tab: import player-made custom
+     * maps. SAF ACTION_GET_CONTENT (MapImporter), letting the game rescan them like any
+     * other user map on its next visit to a map list.
+     */
+    private void buildMapImportSection(LinearLayout page) {
+        LinearLayout card = UiKit.card(page);
+        UiKit.listRow(card, R.drawable.ic_gzh_folder,
+            getString(R.string.tools_import_map_button),
+            getString(R.string.tools_import_map_note),
+            this::startMapImport);
+    }
+
+    private void startMapImport() {
+        // getIntent-driven SAF picker; "*/*" so .tga previews stay selectable
+        // beside .map files (MapImporter.buildPickIntent explains why).
+        try {
+            startActivityForResult(MapImporter.buildPickIntent(), REQUEST_IMPORT_MAPS);
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, getString(R.string.tools_import_map_no_picker), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void handleMapsPicked(Intent data) {
+        List<Uri> uris = new ArrayList<>();
+        if (data.getClipData() != null) {
+            android.content.ClipData clip = data.getClipData();
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                Uri uri = clip.getItemAt(i).getUri();
+                if (uri != null) {
+                    uris.add(uri);
+                }
+            }
+        } else {
+            Uri single = data.getData();
+            if (single != null) {
+                uris.add(single);
+            }
+        }
+        if (uris.isEmpty()) {
+            return;
+        }
+
+        // Copying may take a second or two per large map, so it runs off the UI
+        // thread like every other launcher import. The SAF read grants are tied
+        // to this process and call, so the copy happens right here, now -- never
+        // in the game process later.
+        final List<Uri> toImport = uris;
+        final android.content.Context appContext = getApplicationContext();
+        Toast.makeText(this, getString(R.string.tools_import_map_working), Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            final MapImporter.Result result = MapImporter.importContent(appContext, toImport);
+            runOnUiThread(() -> {
+                Toast.makeText(this, getString(R.string.tools_import_map_result,
+                    result.imported, result.failed, result.skipped), Toast.LENGTH_LONG).show();
+            });
+        }, "map-import").start();
+    }
 
     private void buildLogsSection(LinearLayout page) {
         LinearLayout card = UiKit.card(page);
@@ -2052,6 +2114,7 @@ public class SetupActivity extends Activity {
     private static final int REQUEST_IMPORT_DRIVER = 1002;
     private static final int REQUEST_MODS = 1004;
     private static final int REQUEST_PICK_BASE_GENERALS = 1003;
+    private static final int REQUEST_IMPORT_MAPS = 1005;
 
     private TextView customDriverStatusView;
 
@@ -3882,6 +3945,12 @@ public class SetupActivity extends Activity {
         if (requestCode == REQUEST_MODS) {
             // Back on Home: the mods switched on may have changed.
             showTab(currentTab);
+            return;
+        }
+        if (requestCode == REQUEST_IMPORT_MAPS) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                handleMapsPicked(data);
+            }
             return;
         }
         if (requestCode == 1001 && resultCode == Activity.RESULT_OK && data != null) {
