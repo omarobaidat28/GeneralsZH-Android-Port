@@ -93,7 +93,40 @@ final class ModManager {
     }
 
     private static String orderKey(Context ctx) {
-        return SetupActivity.isGeneralsSelected(ctx) ? PREF_ORDER_GENERALS : PREF_ORDER;
+        return orderKey(SetupActivity.getSelectedGame(ctx));
+    }
+
+    private static String orderKey(String game) {
+        return SetupActivity.GAME_GENERALS.equals(game) ? PREF_ORDER_GENERALS : PREF_ORDER;
+    }
+
+    // GeneralsX @feature Android port 09/11/2026 Launch profiles (LaunchProfiles) keep one game's
+    // list -- order and switches -- as it is stored here, and put it back when the profile is picked.
+    static String storedOrder(Context ctx, String game) {
+        return ctx.getSharedPreferences(SetupActivity.PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(orderKey(game), "");
+    }
+
+    static void storeOrder(Context ctx, String game, String order) {
+        ctx.getSharedPreferences(SetupActivity.PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString(orderKey(game), order == null ? "" : order).apply();
+    }
+
+    /**
+     * How many mods of a stored list would be mounted: switched on, and their folder still in the
+     * given mods folder (a folder deleted since no longer counts, as in listMods()).
+     */
+    static int enabledIn(String order, File modsRoot) {
+        if (order == null || modsRoot == null) {
+            return 0;
+        }
+        int count = 0;
+        for (String line : order.split("\n")) {
+            if (line.length() > 2 && line.startsWith("1|") && new File(modsRoot, line.substring(2)).isDirectory()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /** The other game than the one picked on Home (SetupActivity.GAME_*). */
@@ -135,7 +168,7 @@ final class ModManager {
             deleteTree(mod.dir);
         }
         // This game's list loses it on its next read (the folder is gone); the other gains it.
-        String key = SetupActivity.GAME_GENERALS.equals(game) ? PREF_ORDER_GENERALS : PREF_ORDER;
+        String key = orderKey(game);
         SharedPreferences prefs = ctx.getSharedPreferences(SetupActivity.PREFS_NAME, Context.MODE_PRIVATE);
         String stored = prefs.getString(key, "");
         String entry = (mod.enabled ? "1|" : "0|") + target.getName();

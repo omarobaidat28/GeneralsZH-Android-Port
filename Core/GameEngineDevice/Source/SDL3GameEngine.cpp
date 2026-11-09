@@ -4037,6 +4037,12 @@ namespace gxvirtualkeys
 	//                               Q W E R 1..5 SPACE RETURN KP_ENTER LSHIFT LCTRL LALT ...)
 	//   mods=shift,ctrl            (optional modifier bits baked into the injected event)
 	//   x=0.85 y=0.92              (optional normalized display coords; else auto-grid)
+	//   size=1.5                   (optional size multiplier of this one button, 0.5..2.5;
+	//                               placed buttons only -- the auto-grid stays regular)
+	//
+	// GeneralsX @feature Android port 09/11/2026 The launcher now writes this file (Interface >
+	// On-screen buttons, ControlsLayouts.java / ControlsEditorActivity.java), one key=value per
+	// line, every button with x, y and size.
 	//
 	// Modifier keys defined AS BUTTONS (e.g. [button] key=LSHIFT label=Shift) work as
 	// hold-buttons: keep the finger down on Shift, tap another button with a second finger
@@ -4049,11 +4055,16 @@ namespace gxvirtualkeys
 
 	struct ButtonDef
 	{
+		// GeneralsX @bugfix Android port 09/11/2026 Every field has a default: the parser's
+		// first ButtonDef was default-initialized, so its scancode was whatever the stack
+		// held, and "is there a button to flush" (scancode != UNKNOWN) could emit a button
+		// nobody defined in front of the file's first one.
 		std::string label;
-		SDL_Scancode scancode;
-		Uint16 modBits;        // SDL_Keymod bits from mods= (0 = none)
-		bool hasXY;            // explicit normalized position from the INI
-		float x, y;
+		SDL_Scancode scancode = SDL_SCANCODE_UNKNOWN;
+		Uint16 modBits = 0;    // SDL_Keymod bits from mods= (0 = none)
+		bool hasXY = false;    // explicit normalized position from the INI
+		float x = 0.0f, y = 0.0f;
+		float size = 1.0f;     // size= multiplier of this button (placed buttons only)
 		// runtime state
 		int fingerId = -1;     // -1 = not pressed
 		bool pressed = false;
@@ -4083,6 +4094,23 @@ namespace gxvirtualkeys
 
 	static int scancodeFromNameOrFallback(const char* value)
 	{
+		// GeneralsX @bugfix Android port 09/11/2026 The names this file's grammar documents for
+		// the modifier keys are not names SDL knows (SDL's have a space, "Left Shift", and a
+		// value ends at the first space, so "Left Shift" would even parse as the Left arrow).
+		// A modifier defined as a button was therefore dropped as an unknown key.
+		static const struct { const char* name; SDL_Scancode scancode; } aliases[] = {
+			{ "LSHIFT", SDL_SCANCODE_LSHIFT }, { "RSHIFT", SDL_SCANCODE_RSHIFT },
+			{ "LCTRL", SDL_SCANCODE_LCTRL }, { "RCTRL", SDL_SCANCODE_RCTRL },
+			{ "LALT", SDL_SCANCODE_LALT }, { "RALT", SDL_SCANCODE_RALT },
+			{ "KP_ENTER", SDL_SCANCODE_KP_ENTER },
+		};
+		for (const auto& alias : aliases)
+		{
+			if (strcasecmp(value, alias.name) == 0)
+			{
+				return (int)alias.scancode;
+			}
+		}
 		SDL_Scancode sc = SDL_GetScancodeFromName(value);
 		if (sc != SDL_SCANCODE_UNKNOWN)
 		{
@@ -4169,7 +4197,7 @@ namespace gxvirtualkeys
 			{
 				Uint16 bits = 0;
 				char* ctx = nullptr;
-				char buf[64];
+				char buf[64] = { 0 }; // strncpy leaves a full-length value unterminated
 				strncpy(buf, value, sizeof(buf) - 1);
 				for (char* tok = strtok_r(buf, ",", &ctx); tok != nullptr; tok = strtok_r(nullptr, ",", &ctx))
 				{
@@ -4210,13 +4238,16 @@ namespace gxvirtualkeys
 					{
 						bits |= (Uint16)SDL_KMOD_RCTRL;
 					}
+					// GeneralsX @bugfix Android port 09/11/2026 Each side its own bit, like
+					// lshift/lctrl above: both asked for SDL_KMOD_ALT, and the press code
+					// sends Right Alt whenever that bit is set, so "lalt" pressed Right Alt.
 					else if (strcasecmp(tok, "lalt") == 0)
 					{
-						bits |= (Uint16)SDL_KMOD_ALT;
+						bits |= (Uint16)SDL_KMOD_LALT;
 					}
 					else if (strcasecmp(tok, "ralt") == 0)
 					{
-						bits |= (Uint16)SDL_KMOD_ALT;
+						bits |= (Uint16)SDL_KMOD_RALT;
 					}
 					else if (strcasecmp(tok, "gui") == 0)
 					{
@@ -4234,6 +4265,10 @@ namespace gxvirtualkeys
 			{
 				p.current.y = (float)atof(value);
 				p.current.hasXY = true;
+			}
+			else if (strcmp(key, "size") == 0)
+			{
+				p.current.size = (float)atof(value);
 			}
 		}
 		return 0;
@@ -4394,6 +4429,7 @@ namespace gxvirtualkeys
 				b.label = SDL_GetScancodeName(b.scancode);
 			}
 			b.modBits |= modBitsFromScancode(b.scancode);
+			b.size = std::max(0.5f, std::min(2.5f, b.size));
 			valid.push_back(b);
 		}
 		s_buttons.swap(valid);
@@ -4541,8 +4577,8 @@ namespace gxvirtualkeys
 			{
 				rects[i].x = (Int)(b.x * (float)dw);
 				rects[i].y = (Int)(b.y * (float)dh);
-				rects[i].w = unit;
-				rects[i].h = unit;
+				rects[i].w = (Int)((float)unit * b.size);
+				rects[i].h = rects[i].w;
 				continue;
 			}
 			const int r = slot / cols;

@@ -418,6 +418,11 @@ public class GeneralsZHActivity extends SDLActivity {
             }
         }
 
+        // GeneralsX @feature Android port 09/11/2026 The on-screen buttons the player laid out in
+        // the launcher (ControlsLayouts), as the file the engine's overlay reads from its working
+        // directory -- the folder SDL3Main.cpp is about to enter, whichever of the two it is.
+        ControlsLayouts.writeForGame(this, haveCustomPath ? new File(gamePath) : legacyGameDataDir());
+
         super.onCreate(savedInstanceState);
     }
 

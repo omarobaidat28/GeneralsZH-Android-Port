@@ -167,6 +167,15 @@
             android:theme="@style/Theme.GeneralsZHSettings"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
+        <!-- GeneralsX @feature Android port 09/11/2026 On-screen buttons editor. Landscape like the
+             game: the frame it edits is a copy of the game's screen, which is always landscape. -->
+        <activity
+            android:name=".ControlsEditorActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/Theme.GeneralsZHSettings"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
         <activity
             android:name=".ReplayCheckActivity"
             android:exported="false"

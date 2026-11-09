@@ -455,6 +455,7 @@ public class SetupActivity extends Activity {
                 buildUiScaleSection(page);
                 buildInterfaceScaleSection(page);
                 buildControlSchemeSection(page);
+                buildOnScreenButtonsSection(page);
                 break;
             case TAB_TOOLS:
                 buildLogsSection(page);
@@ -501,8 +502,16 @@ public class SetupActivity extends Activity {
         // GeneralsX @feature Android port 04/10/2026 Which game this page is about. Play, the game
         // folder and its checks below follow it; the other pages are shared by both games.
         final boolean generals = isGeneralsSelected(this);
+
+        // GeneralsX @feature Android port 09/11/2026 Home in the order a launcher is read: who is
+        // playing, what is about to start (the profile, with Play right under it), then what that
+        // profile is made of. The account used to sit below the folder card and Play between two
+        // cards; the cards under the profile are the same ones as before.
+        buildGeneralsOnlineSection(page);
+        buildProfileSection(page);
+
         LinearLayout game = UiKit.card(page);
-        UiKit.sectionHeader(game, R.drawable.ic_gzh_play, getString(R.string.setup_card_game), false);
+        UiKit.sectionHeader(game, R.drawable.ic_gzh_sliders, getString(R.string.setup_card_game), false);
         CharSequence[] games = new CharSequence[] {
             getString(R.string.setup_game_generals),
             getString(R.string.setup_game_zero_hour)
@@ -545,10 +554,6 @@ public class SetupActivity extends Activity {
                 : getString(R.string.mods_home_enabled, modsOn),
             () -> startActivityForResult(new Intent(this, ModManagerActivity.class), REQUEST_MODS));
 
-        // The one thing this app exists to do, as the first thing on it.
-        UiKit.button(page, UiKit.BTN_PRIMARY, R.drawable.ic_gzh_play,
-            getString(R.string.setup_button_launch_game), this::onLaunchGame);
-
         LinearLayout folder = UiKit.card(page);
         UiKit.sectionHeader(folder, R.drawable.ic_gzh_folder,
             getString(R.string.setup_card_game_folder), false);
@@ -571,12 +576,158 @@ public class SetupActivity extends Activity {
                 getString(R.string.setup_button_clear_base_generals), this::onClearBaseGeneralsFolder);
         }
 
-        // GeneralsX @bugfix Android port 01/08/2026 kept above the advanced
-        // settings -- signing into GeneralsOnline is a primary action most
-        // people want right after picking their game folder, not something to
-        // bury under settings most players never touch.
-        buildGeneralsOnlineSection(page);
         buildUpdatesSection(page);
+    }
+
+    // ------------------------------------------------------- Launch profiles
+    //
+    // GeneralsX @feature Android port 09/11/2026 The selected profile (LaunchProfiles) and Play.
+    // The row names the profile and what it will start; tapping it lists the others. Every
+    // control that changes a profile's contents is the one that was already on Home or Graphics.
+    private void buildProfileSection(LinearLayout page) {
+        final LaunchProfiles.State state = LaunchProfiles.load(this);
+        final LaunchProfiles.Profile active = state.active;
+
+        LinearLayout card = UiKit.card(page);
+        UiKit.sectionHeader(card, R.drawable.ic_gzh_play, getString(R.string.profiles_title), false);
+        UiKit.listRow(card, R.drawable.ic_gzh_check, active.name, profileSummary(active),
+            this::showProfilePicker);
+
+        LinearLayout actions = UiKit.buttonRow(card);
+        UiKit.share(UiKit.button(actions, UiKit.BTN_TONAL, 0,
+            getString(R.string.profiles_new), this::onNewProfile), true);
+        UiKit.share(UiKit.button(actions, UiKit.BTN_TONAL, 0,
+            getString(R.string.profiles_rename), () -> onRenameProfile(active)), false);
+        MaterialButton delete = UiKit.button(actions, UiKit.BTN_DANGER, 0,
+            getString(R.string.mods_delete_button), () -> onDeleteProfile(active));
+        UiKit.share(delete, false);
+        // The last profile stays: it is the launcher's settings themselves.
+        delete.setEnabled(state.profiles.size() > 1);
+
+        // The one thing this app exists to do, right under what it is about to start.
+        UiKit.button(card, UiKit.BTN_PRIMARY, R.drawable.ic_gzh_play,
+            getString(R.string.setup_button_launch_game), this::onLaunchGame);
+
+        UiKit.helpText(card, getString(R.string.profiles_desc, getString(R.string.mods_title),
+            getString(R.string.setup_card_sim_rate), getString(R.string.setup_card_render_backend),
+            getString(R.string.setup_switch_skip_intro)));
+    }
+
+    /** "Zero Hour · Mods on: 2 · 60 Hz · GLES": what a profile starts, in the words of its cards. */
+    private String profileSummary(LaunchProfiles.Profile profile) {
+        int mods = ModManager.enabledIn(profile.modsOrder, ModManager.modsRootFor(this, profile.game));
+        return getString(GAME_GENERALS.equals(profile.game)
+                ? R.string.setup_game_generals : R.string.setup_game_zero_hour)
+            + " · " + (mods == 0 ? getString(R.string.mods_home_none)
+                : getString(R.string.mods_home_enabled, mods))
+            + " · " + getString(profile.simHz == SIM_HZ_CROSSPLAY
+                ? R.string.setup_sim_rate_60_short : R.string.setup_sim_rate_30_short)
+            + " · " + shortRenderBackendLabel(profile.renderBackend);
+    }
+
+    private void showProfilePicker() {
+        final LaunchProfiles.State state = LaunchProfiles.load(this);
+        CharSequence[] labels = new CharSequence[state.profiles.size()];
+        int checked = 0;
+        for (int i = 0; i < labels.length; i++) {
+            LaunchProfiles.Profile profile = state.profiles.get(i);
+            // The name, and under it in the quieter tier what that profile starts.
+            SpannableStringBuilder label = new SpannableStringBuilder(profile.name);
+            int summaryStart = label.length();
+            label.append('\n').append(profileSummary(profile));
+            label.setSpan(new android.text.style.RelativeSizeSpan(0.8f), summaryStart, label.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            label.setSpan(new ForegroundColorSpan(UiKit.color(this, R.color.gzh_on_surface_variant)),
+                summaryStart, label.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            labels[i] = label;
+            if (profile == state.active) {
+                checked = i;
+            }
+        }
+        new android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.profiles_dialog_title)
+            .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                dialog.dismiss();
+                LaunchProfiles.Profile picked = state.profiles.get(which);
+                if (LaunchProfiles.select(this, picked.id)) {
+                    onProfileSettingsReplaced();
+                    Toast.makeText(this, getString(R.string.profiles_toast_selected, picked.name),
+                        Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setPositiveButton(R.string.profiles_new, (dialog, which) -> onNewProfile())
+            .setNegativeButton(R.string.common_cancel, null)
+            .show();
+    }
+
+    /**
+     * After another profile's values were written into the launcher's settings: the same
+     * follow-ups the controls for those settings perform themselves when they are used by hand.
+     */
+    private void onProfileSettingsReplaced() {
+        // As on a Graphics page shown with Vulkan selected (showTab()).
+        if (RENDER_BACKEND_VULKAN.equals(getRenderBackendChoice())) {
+            applyRecommendedDriverIfNeeded();
+        }
+        // The app bar names the game, so the whole shell is rebuilt, as when the game is switched.
+        buildUi();
+    }
+
+    private void onNewProfile() {
+        promptProfileName(R.string.profiles_new, getString(R.string.profiles_new_desc),
+            LaunchProfiles.suggestName(this), name -> {
+                LaunchProfiles.Profile created = LaunchProfiles.create(this, name);
+                showTab(currentTab);
+                Toast.makeText(this, getString(R.string.profiles_toast_selected, created.name),
+                    Toast.LENGTH_SHORT).show();
+            });
+    }
+
+    private void onRenameProfile(LaunchProfiles.Profile profile) {
+        promptProfileName(R.string.profiles_rename, null, profile.name, name -> {
+            LaunchProfiles.rename(this, profile.id, name);
+            showTab(currentTab);
+        });
+    }
+
+    private void onDeleteProfile(LaunchProfiles.Profile profile) {
+        new android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.profiles_dialog_title)
+            .setMessage(getString(R.string.profiles_delete_confirm, profile.name))
+            .setPositiveButton(R.string.mods_delete_button, (dialog, which) -> {
+                if (LaunchProfiles.delete(this, profile.id)) {
+                    onProfileSettingsReplaced();
+                }
+            })
+            .setNegativeButton(R.string.common_cancel, null)
+            .show();
+    }
+
+    /** One-line name dialog; an emptied field keeps {@code initial}. */
+    private void promptProfileName(int titleRes, CharSequence message, String initial,
+                                   java.util.function.Consumer<String> onName) {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        // Built on the dialog's own context so the field takes the dialog's colours, not the page's.
+        final EditText input = new EditText(builder.getContext());
+        input.setSingleLine(true);
+        input.setHint(R.string.profiles_name_hint);
+        input.setText(initial);
+        input.setSelectAllOnFocus(true);
+        FrameLayout holder = new FrameLayout(builder.getContext());
+        int pad = UiKit.dp(this, 20);
+        holder.setPadding(pad, UiKit.dp(this, 8), pad, 0);
+        holder.addView(input, new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+        builder.setTitle(titleRes).setView(holder);
+        if (message != null) {
+            builder.setMessage(message);
+        }
+        builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                String name = input.getText().toString().trim();
+                onName.accept(name.isEmpty() ? initial : name);
+            })
+            .setNegativeButton(R.string.common_cancel, null)
+            .show();
     }
 
     // GeneralsX @feature Android port 18/10/2026 PLAN-030: where each game takes what its own folder
@@ -1173,6 +1324,42 @@ public class SetupActivity extends Activity {
         UiKit.helpText(content, getString(R.string.setup_control_scheme_help));
         UiKit.divider(content);
         buildMouseModeRows(content);
+    }
+
+    // GeneralsX @feature Android port 09/11/2026 On-screen buttons: keyboard keys as buttons over
+    // the game (the engine's gxvirtualkeys overlay, which until now had nothing to configure it).
+    // The switch and the entry to the editor; the layouts themselves are ControlsLayouts, written
+    // to the game folder when a game starts (GeneralsZHActivity.onCreate()).
+    private void buildOnScreenButtonsSection(LinearLayout root) {
+        LinearLayout content = UiKit.card(root);
+        UiKit.sectionHeader(content, R.drawable.ic_gzh_sliders,
+            getString(R.string.controls_card_title), false);
+
+        SwitchCompat show = UiKit.switchRow(content,
+            getString(R.string.controls_enable), getString(R.string.controls_enable_desc));
+        show.setChecked(ControlsLayouts.isEnabled(this));
+
+        // Which layout the game will draw. Absent until there is one: a player who never switched
+        // this on has no layout, and making one just to name it here would claim the engine's file.
+        final TextView status = UiKit.supporting(content, null);
+        final Runnable showStatus = () -> {
+            if (!ControlsLayouts.hasLayouts(this)) {
+                status.setVisibility(View.GONE);
+                return;
+            }
+            ControlsLayouts.Layout layout = ControlsLayouts.load(this).active;
+            status.setText(getString(R.string.controls_status, layout.name, layout.buttons.size()));
+            status.setVisibility(View.VISIBLE);
+        };
+        showStatus.run();
+        show.setOnCheckedChangeListener((button, checked) -> {
+            ControlsLayouts.setEnabled(this, checked);
+            showStatus.run();
+        });
+
+        UiKit.button(content, UiKit.BTN_TONAL, R.drawable.ic_gzh_sliders,
+            getString(R.string.controls_edit_button),
+            () -> startActivityForResult(new Intent(this, ControlsEditorActivity.class), REQUEST_CONTROLS));
     }
 
     private static int controlSchemeIndex(boolean[] state) {
@@ -1785,9 +1972,9 @@ public class SetupActivity extends Activity {
     // initContext() -- see its comment for why) before the game's video
     // subsystem starts.
     private static final String RENDER_BACKEND_CFG_NAME = "render_backend.cfg";
-    private static final String RENDER_BACKEND_VULKAN = "vulkan";
-    private static final String RENDER_BACKEND_GLES = "gles";
-    private static final String RENDER_BACKEND_GLES_ANGLE = "gles_angle";
+    static final String RENDER_BACKEND_VULKAN = "vulkan";
+    static final String RENDER_BACKEND_GLES = "gles";
+    static final String RENDER_BACKEND_GLES_ANGLE = "gles_angle";
 
     private TextView renderBackendStatusView;
 
@@ -1798,7 +1985,13 @@ public class SetupActivity extends Activity {
     // here: preserves today's actual behavior for existing installs instead
     // of silently switching anyone's renderer the next time Setup runs.
     private String getRenderBackendChoice() {
-        File cfg = new File(getFilesDir(), RENDER_BACKEND_CFG_NAME);
+        return getRenderBackendChoice(this);
+    }
+
+    // GeneralsX @refactor Android port 09/11/2026 Static, like getSavedGamePath(ctx): a launch
+    // profile (LaunchProfiles) reads and restores the renderer without a SetupActivity at hand.
+    static String getRenderBackendChoice(android.content.Context ctx) {
+        File cfg = new File(ctx.getFilesDir(), RENDER_BACKEND_CFG_NAME);
         if (!cfg.isFile()) {
             return RENDER_BACKEND_GLES;
         }
@@ -1939,7 +2132,11 @@ public class SetupActivity extends Activity {
     private static final String PREF_VULKAN_MOVED = "vulkan_moved_to_gles";
 
     private boolean isVulkanUnlocked() {
-        return getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(PREF_VULKAN_UNLOCKED, false);
+        return isVulkanUnlocked(this);
+    }
+
+    static boolean isVulkanUnlocked(android.content.Context ctx) {
+        return ctx.getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(PREF_VULKAN_UNLOCKED, false);
     }
 
     private String[] renderBackendChoices() {
@@ -1974,14 +2171,23 @@ public class SetupActivity extends Activity {
     }
 
     private boolean writeRenderBackend(String choice) {
-        File cfg = new File(getFilesDir(), RENDER_BACKEND_CFG_NAME);
+        String failure = storeRenderBackend(this, choice);
+        if (failure != null) {
+            Toast.makeText(this, getString(R.string.setup_toast_render_backend_failed, failure), Toast.LENGTH_LONG).show();
+            return false;
+        }
+        return true;
+    }
+
+    /** Writes the renderer marker the engine reads; null when written, else why it was not. */
+    static String storeRenderBackend(android.content.Context ctx, String choice) {
+        File cfg = new File(ctx.getFilesDir(), RENDER_BACKEND_CFG_NAME);
         try (java.io.FileWriter w = new java.io.FileWriter(cfg, false)) {
             w.write(choice);
             w.write("\n");
-            return true;
+            return null;
         } catch (java.io.IOException e) {
-            Toast.makeText(this, getString(R.string.setup_toast_render_backend_failed, e.getMessage()), Toast.LENGTH_LONG).show();
-            return false;
+            return String.valueOf(e.getMessage());
         }
     }
 
@@ -2025,7 +2231,16 @@ public class SetupActivity extends Activity {
         UiKit.supporting(content, getString(current == SIM_HZ_CROSSPLAY
             ? (isGeneralsSelected(this) ? R.string.setup_sim_rate_60_desc_generals : R.string.setup_sim_rate_60_desc)
             : (isGeneralsSelected(this) ? R.string.setup_sim_rate_30_desc_generals : R.string.setup_sim_rate_30_desc)));
+        addProfileNote(content);
         UiKit.helpText(content, getString(R.string.setup_sim_rate_help));
+    }
+
+    // GeneralsX @feature Android port 09/11/2026 The rate and the renderer are kept per launch
+    // profile (LaunchProfiles); said on the two cards that set them, where it matters.
+    private void addProfileNote(LinearLayout content) {
+        UiKit.chip(content, R.drawable.ic_gzh_play,
+            getString(R.string.profiles_setting_note, LaunchProfiles.load(this).active.name),
+            R.color.gzh_on_surface, R.color.gzh_surface_container_high);
     }
 
     private void buildRenderBackendSection(LinearLayout root) {
@@ -2071,6 +2286,7 @@ public class SetupActivity extends Activity {
                 getString(R.string.setup_render_backend_gpu, gpu),
                 R.color.gzh_on_surface, R.color.gzh_surface_container_high);
         }
+        addProfileNote(content);
 
         // GeneralsX @tweak Android port 18/10/2026 The Vulkan paragraphs only while Vulkan is offered
         // (RENDER_BACKEND_CHOICES_NO_VULKAN): explaining a choice that is not on screen confuses.
@@ -2118,6 +2334,7 @@ public class SetupActivity extends Activity {
     private static final int REQUEST_MODS = 1004;
     private static final int REQUEST_PICK_BASE_GENERALS = 1003;
     private static final int REQUEST_IMPORT_MAPS = 1005;
+    private static final int REQUEST_CONTROLS = 1006;
 
     private TextView customDriverStatusView;
 
@@ -2760,11 +2977,15 @@ public class SetupActivity extends Activity {
     private TextView onlineStatusView;
 
     private void buildGeneralsOnlineSection(LinearLayout root) {
+        // GeneralsX @tweak Android port 09/11/2026 First on Home now, so one row instead of a header,
+        // a status line and a button: the account's name, who is signed in under it, and the whole
+        // row opens the account screen. (setup_card_online stays in the resources, translated, as
+        // the card's former header.)
         LinearLayout content = UiKit.card(root);
-        UiKit.sectionHeader(content, R.drawable.ic_gzh_account,
-            getString(R.string.setup_card_online), false);
-
-        onlineStatusView = UiKit.supporting(content, null);
+        UiKit.Row account = UiKit.listRow(content, R.drawable.ic_gzh_account,
+            getString(R.string.setup_button_online_account), null, this::lxGuardedOpenOnline);
+        ((LinearLayout.LayoutParams) account.root.getLayoutParams()).topMargin = 0;
+        onlineStatusView = account.supporting;
 
         // GeneralsX @feature Android port 27/09/2026 The service refuses a join between lobbies
         // whose anti-cheat differs (anticheat_id, JoinLobbyResult_AnticheatMismatch), and this
@@ -2776,10 +2997,6 @@ public class SetupActivity extends Activity {
         if (UpdateManager.featureEnabled(this, "pc_crossplay", false)) {
             UiKit.supporting(content, getString(R.string.setup_online_anticheat_note));
         }
-
-        UiKit.button(content, UiKit.BTN_TONAL, R.drawable.ic_gzh_account,
-            getString(R.string.setup_button_online_account), () ->
-                lxGuardedOpenOnline());
     }
 
     // GeneralsX @feature Android port 21/10/2026 GXOnlineGate: single funnel for every
@@ -3986,8 +4203,9 @@ public class SetupActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_MODS) {
-            // Back on Home: the mods switched on may have changed.
+        if (requestCode == REQUEST_MODS || requestCode == REQUEST_CONTROLS) {
+            // Back on Home: the mods switched on may have changed. Back on Interface: so may the
+            // selected button layout and how many buttons it has.
             showTab(currentTab);
             return;
         }
