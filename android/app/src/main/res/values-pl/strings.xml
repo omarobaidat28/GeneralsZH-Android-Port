@@ -504,4 +504,13 @@
     <string name="setup_sources_zh_art_missing">W folderze Zero Hour nie ma TexturesZH.big, więc Generals nie może wziąć z niego obrazów: %1$s</string>
     <string name="setup_sources_base_ok">Archiwa oryginalnego Generals dla Zero Hour: %1$s</string>
     <string name="setup_sources_base_auto">Zero Hour szuka archiwów oryginalnego Generals w swoim folderze (ZH_Generals) lub obok niego; jeśli są gdzie indziej, wybierz folder poniżej.</string>
+    <string name="setup_games_recognised">Wybierz folder dowolnej gry: launcher rozpozna grę po jej plikach i przełączy się na nią. Rozpoznaje też, bez silnika w aplikacji: %1$s.</string>
+    <string name="setup_dialog_game_detected_title">Inna gra w tym folderze</string>
+    <string name="setup_dialog_game_detected_message">Ten folder zawiera %1$s, nie %2$s. Przełączyć launcher na %1$s i użyć tego folderu dla niej?</string>
+    <string name="setup_button_game_switch">Przełącz</string>
+    <string name="setup_button_game_keep">Zostaw %1$s</string>
+    <string name="setup_dialog_game_no_engine">Ten folder zawiera %1$s. Launcher ją rozpoznaje, ale jej silnika nie ma jeszcze w aplikacji: %2$s.\n\nFolder nie został zapisany. Dziś działają Generals i Zero Hour.</string>
+    <string name="setup_engine_note_conquer">planowane, na otwartym silniku Vanilla Conquer (EA opublikowało kod źródłowy w 2020)</string>
+    <string name="setup_engine_note_renegade">planowane, z kodu źródłowego opublikowanego przez EA w 2025 (ta sama rodzina silnika W3D co Generals)</string>
+    <string name="setup_engine_note_no_source">jej kod źródłowy nigdy nie został opublikowany, więc nie ma jeszcze silnika do przeniesienia</string>
 </resources>

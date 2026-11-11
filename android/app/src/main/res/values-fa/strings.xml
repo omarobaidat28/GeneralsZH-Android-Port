@@ -504,4 +504,13 @@
     <string name="setup_sources_zh_art_missing">پوشهٔ Zero Hour فایل TexturesZH.big ندارد، پس Generals نمی‌تواند تصویری از آن بگیرد: %1$s</string>
     <string name="setup_sources_base_ok">بایگانی‌های Generals اصلی برای Zero Hour: %1$s</string>
     <string name="setup_sources_base_auto">Zero Hour بایگانی‌های Generals اصلی را در پوشهٔ خودش (ZH_Generals) یا کنار آن جست‌وجو می‌کند؛ اگر جای دیگری هستند، پوشه‌ای را در پایین انتخاب کنید.</string>
+    <string name="setup_games_recognised">پوشهٔ هر بازی را انتخاب کنید: لانچر بازی را از روی فایل‌هایش می‌شناسد و به آن می‌رود. این بازی‌ها را هم می‌شناسد، اما موتورشان هنوز در برنامه نیست: %1$s.</string>
+    <string name="setup_dialog_game_detected_title">بازی دیگری در این پوشه</string>
+    <string name="setup_dialog_game_detected_message">این پوشه %1$s را دارد، نه %2$s. لانچر به %1$s برود و این پوشه برای آن استفاده شود؟</string>
+    <string name="setup_button_game_switch">تغییر</string>
+    <string name="setup_button_game_keep">ماندن روی %1$s</string>
+    <string name="setup_dialog_game_no_engine">این پوشه %1$s را دارد. لانچر آن را می‌شناسد، اما موتورش هنوز در برنامه نیست: %2$s.\n\nپوشه ذخیره نشد. امروز Generals و Zero Hour اجرا می‌شوند.</string>
+    <string name="setup_engine_note_conquer">برنامه‌ریزی‌شده، روی موتور متن‌باز Vanilla Conquer (EA کد منبع را در 2020 منتشر کرد)</string>
+    <string name="setup_engine_note_renegade">برنامه‌ریزی‌شده، از کد منبعی که EA در 2025 منتشر کرد (همان خانوادهٔ موتور W3D که Generals دارد)</string>
+    <string name="setup_engine_note_no_source">کد منبع آن هرگز منتشر نشده، پس هنوز موتوری برای پورت وجود ندارد</string>
 </resources>

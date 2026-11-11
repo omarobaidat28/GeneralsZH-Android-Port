@@ -504,4 +504,13 @@
     <string name="setup_sources_zh_art_missing">لا يحتوي مجلد Zero Hour على TexturesZH.big، لذا لا يستطيع Generals أخذ الصور منه: %1$s</string>
     <string name="setup_sources_base_ok">أرشيفات Generals الأصلية من أجل Zero Hour: %1$s</string>
     <string name="setup_sources_base_auto">يبحث Zero Hour عن أرشيفات Generals الأصلية داخل مجلده (ZH_Generals) أو بجانبه؛ إن كانت في مكان آخر فاختر مجلداً أدناه.</string>
+    <string name="setup_games_recognised">اختر مجلد أي لعبة: يتعرف المشغّل على اللعبة من ملفاتها وينتقل إليها. ويتعرف أيضاً على هذه الألعاب، ومحركها لم يُضف إلى التطبيق بعد: %1$s.</string>
+    <string name="setup_dialog_game_detected_title">لعبة أخرى في هذا المجلد</string>
+    <string name="setup_dialog_game_detected_message">هذا المجلد فيه %1$s وليس %2$s. هل تريد نقل المشغّل إلى %1$s واستخدام هذا المجلد لها؟</string>
+    <string name="setup_button_game_switch">انتقال</string>
+    <string name="setup_button_game_keep">إبقاء %1$s</string>
+    <string name="setup_dialog_game_no_engine">هذا المجلد فيه %1$s. يتعرف عليها المشغّل، لكن محركها ليس في التطبيق بعد: %2$s.\n\nلم يُحفظ المجلد. اللعبتان اللتان تعملان اليوم هما Generals وZero Hour.</string>
+    <string name="setup_engine_note_conquer">مخطط له على محرك Vanilla Conquer مفتوح المصدر (نشرت EA الكود المصدري عام 2020)</string>
+    <string name="setup_engine_note_renegade">مخطط له انطلاقاً من الكود المصدري الذي نشرته EA عام 2025 (من عائلة محرك W3D نفسها التي بُنيت عليها Generals)</string>
+    <string name="setup_engine_note_no_source">لم يُنشر كودها المصدري قط، فلا يوجد محرك لنقله بعد</string>
 </resources>

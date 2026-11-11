@@ -504,4 +504,13 @@
     <string name="setup_sources_zh_art_missing">У теці Zero Hour немає TexturesZH.big, тому Generals не може взяти звідти картинки: %1$s</string>
     <string name="setup_sources_base_ok">Архіви оригінальної Generals для Zero Hour: %1$s</string>
     <string name="setup_sources_base_auto">Zero Hour шукає архіви оригінальної Generals у своїй теці (ZH_Generals) або поруч із нею; якщо вони деінде, виберіть теку нижче.</string>
+    <string name="setup_games_recognised">Виберіть теку будь-якої гри: лаунчер упізнає гру за її файлами й перемикається на неї. Також упізнає, але рушія в застосунку ще немає: %1$s.</string>
+    <string name="setup_dialog_game_detected_title">У цій теці інша гра</string>
+    <string name="setup_dialog_game_detected_message">У цій теці %1$s, а не %2$s. Перемкнути лаунчер на %1$s і використати цю теку для неї?</string>
+    <string name="setup_button_game_switch">Перемкнути</string>
+    <string name="setup_button_game_keep">Залишити %1$s</string>
+    <string name="setup_dialog_game_no_engine">У цій теці %1$s. Лаунчер її впізнає, але її рушія в застосунку ще немає: %2$s.\n\nТеку не збережено. Зараз працюють Generals і Zero Hour.</string>
+    <string name="setup_engine_note_conquer">у планах, на відкритому рушії Vanilla Conquer (EA оприлюднила вихідний код у 2020 році)</string>
+    <string name="setup_engine_note_renegade">у планах, на основі вихідного коду, оприлюдненого EA у 2025 році (та сама родина рушія W3D, що й у Generals)</string>
+    <string name="setup_engine_note_no_source">її вихідний код ніколи не оприлюднювали, тож переносити поки нічого</string>
 </resources>

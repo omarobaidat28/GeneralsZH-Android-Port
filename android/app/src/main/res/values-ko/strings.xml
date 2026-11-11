@@ -504,4 +504,13 @@
     <string name="setup_sources_zh_art_missing">Zero Hour 폴더에 TexturesZH.big이 없어 Generals가 그림을 가져올 수 없습니다: %1$s</string>
     <string name="setup_sources_base_ok">Zero Hour용 원본 Generals 아카이브: %1$s</string>
     <string name="setup_sources_base_auto">Zero Hour는 원본 Generals 아카이브를 자기 폴더(ZH_Generals)나 그 옆에서 찾습니다. 다른 곳에 있다면 아래에서 폴더를 선택하세요.</string>
+    <string name="setup_games_recognised">아무 게임 폴더나 선택하세요. 런처가 파일로 게임을 알아보고 그 게임으로 전환합니다. 다음 게임도 인식하지만 아직 앱에 엔진이 없습니다: %1$s.</string>
+    <string name="setup_dialog_game_detected_title">이 폴더에 다른 게임이 있습니다</string>
+    <string name="setup_dialog_game_detected_message">이 폴더에는 %2$s이(가) 아니라 %1$s이(가) 있습니다. 런처를 %1$s(으)로 전환하고 이 폴더를 사용할까요?</string>
+    <string name="setup_button_game_switch">전환</string>
+    <string name="setup_button_game_keep">%1$s 유지</string>
+    <string name="setup_dialog_game_no_engine">이 폴더에는 %1$s이(가) 있습니다. 런처가 인식하지만 아직 앱에 엔진이 없습니다: %2$s.\n\n폴더는 저장되지 않았습니다. 현재 실행되는 게임은 Generals와 Zero Hour입니다.</string>
+    <string name="setup_engine_note_conquer">오픈 소스 엔진 Vanilla Conquer로 예정 (EA가 2020년에 소스 코드를 공개)</string>
+    <string name="setup_engine_note_renegade">EA가 2025년에 공개한 소스 코드로 예정 (Generals와 같은 W3D 엔진 계열)</string>
+    <string name="setup_engine_note_no_source">소스 코드가 공개된 적이 없어 아직 이식할 엔진이 없습니다</string>
 </resources>

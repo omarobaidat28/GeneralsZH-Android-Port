@@ -504,4 +504,13 @@
     <string name="setup_sources_zh_art_missing">Zero Hour 文件夹中没有 TexturesZH.big，因此 Generals 无法从中获取图片：%1$s</string>
     <string name="setup_sources_base_ok">供 Zero Hour 使用的原版 Generals 归档：%1$s</string>
     <string name="setup_sources_base_auto">Zero Hour 会在自己的文件夹（ZH_Generals）内或旁边查找原版 Generals 归档；如在别处，请在下方选择文件夹。</string>
+    <string name="setup_games_recognised">选择任意游戏的文件夹：启动器会根据文件识别游戏并切换过去。还能识别以下游戏，但应用中暂无其引擎：%1$s。</string>
+    <string name="setup_dialog_game_detected_title">此文件夹中是另一个游戏</string>
+    <string name="setup_dialog_game_detected_message">此文件夹中是 %1$s，而不是 %2$s。要将启动器切换到 %1$s 并为其使用此文件夹吗？</string>
+    <string name="setup_button_game_switch">切换</string>
+    <string name="setup_button_game_keep">保留 %1$s</string>
+    <string name="setup_dialog_game_no_engine">此文件夹中是 %1$s。启动器能识别它，但应用中还没有它的引擎：%2$s。\n\n文件夹未保存。目前可运行的是 Generals 和 Zero Hour。</string>
+    <string name="setup_engine_note_conquer">计划基于开源引擎 Vanilla Conquer（EA 于 2020 年公开了源代码）</string>
+    <string name="setup_engine_note_renegade">计划基于 EA 于 2025 年公开的源代码（与 Generals 同属 W3D 引擎家族）</string>
+    <string name="setup_engine_note_no_source">其源代码从未公开，因此暂时没有可移植的引擎</string>
 </resources>

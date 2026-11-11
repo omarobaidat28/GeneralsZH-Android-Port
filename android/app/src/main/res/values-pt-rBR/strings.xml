@@ -504,4 +504,13 @@
     <string name="setup_sources_zh_art_missing">A pasta do Zero Hour não tem TexturesZH.big, então o Generals não pode pegar imagens dela: %1$s</string>
     <string name="setup_sources_base_ok">Arquivos do Generals original para o Zero Hour: %1$s</string>
     <string name="setup_sources_base_auto">O Zero Hour procura os arquivos do Generals original na própria pasta (ZH_Generals) ou ao lado dela; se estiverem em outro lugar, escolha uma pasta abaixo.</string>
+    <string name="setup_games_recognised">Escolha a pasta de qualquer jogo: o iniciador reconhece o jogo pelos arquivos e muda para ele. Também reconhece, sem motor no app ainda: %1$s.</string>
+    <string name="setup_dialog_game_detected_title">Outro jogo nesta pasta</string>
+    <string name="setup_dialog_game_detected_message">Esta pasta contém %1$s, não %2$s. Mudar o iniciador para %1$s e usar esta pasta para ele?</string>
+    <string name="setup_button_game_switch">Mudar</string>
+    <string name="setup_button_game_keep">Manter %1$s</string>
+    <string name="setup_dialog_game_no_engine">Esta pasta contém %1$s. O iniciador o reconhece, mas o motor dele ainda não está no app: %2$s.\n\nA pasta não foi salva. Hoje rodam Generals e Zero Hour.</string>
+    <string name="setup_engine_note_conquer">previsto, no motor de código aberto Vanilla Conquer (a EA publicou o código em 2020)</string>
+    <string name="setup_engine_note_renegade">previsto, a partir do código que a EA publicou em 2025 (a mesma família de motor W3D do Generals)</string>
+    <string name="setup_engine_note_no_source">o código dele nunca foi publicado, então ainda não há motor para portar</string>
 </resources>

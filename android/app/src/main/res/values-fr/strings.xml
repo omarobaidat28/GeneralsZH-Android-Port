@@ -504,4 +504,13 @@
     <string name="setup_sources_zh_art_missing">Le dossier de Zero Hour n’a pas de TexturesZH.big, Generals ne peut donc pas y prendre d’images : %1$s</string>
     <string name="setup_sources_base_ok">Archives du Generals d’origine pour Zero Hour : %1$s</string>
     <string name="setup_sources_base_auto">Zero Hour cherche les archives du Generals d’origine dans son dossier (ZH_Generals) ou à côté ; si elles sont ailleurs, choisissez un dossier ci-dessous.</string>
+    <string name="setup_games_recognised">Choisissez le dossier de n\'importe quel jeu : le lanceur reconnaît le jeu à ses fichiers et bascule dessus. Également reconnus, moteur pas encore dans l\'appli : %1$s.</string>
+    <string name="setup_dialog_game_detected_title">Un autre jeu dans ce dossier</string>
+    <string name="setup_dialog_game_detected_message">Ce dossier contient %1$s, pas %2$s. Basculer le lanceur sur %1$s et utiliser ce dossier pour lui ?</string>
+    <string name="setup_button_game_switch">Basculer</string>
+    <string name="setup_button_game_keep">Garder %1$s</string>
+    <string name="setup_dialog_game_no_engine">Ce dossier contient %1$s. Le lanceur le reconnaît, mais son moteur n\'est pas encore dans l\'appli : %2$s.\n\nLe dossier n\'a pas été enregistré. Generals et Zero Hour fonctionnent aujourd\'hui.</string>
+    <string name="setup_engine_note_conquer">prévu, sur le moteur libre Vanilla Conquer (EA a publié le code source en 2020)</string>
+    <string name="setup_engine_note_renegade">prévu, à partir du code source publié par EA en 2025 (la même famille de moteur W3D que Generals)</string>
+    <string name="setup_engine_note_no_source">son code source n\'a jamais été publié, il n\'y a donc pas encore de moteur à porter</string>
 </resources>

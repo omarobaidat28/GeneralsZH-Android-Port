@@ -506,4 +506,13 @@
     <string name="setup_sources_zh_art_missing">В папке Zero Hour нет TexturesZH.big, поэтому Generals не может взять оттуда картинки: %1$s</string>
     <string name="setup_sources_base_ok">Архивы оригинальной Generals для Zero Hour: %1$s</string>
     <string name="setup_sources_base_auto">Zero Hour ищет архивы оригинальной Generals в своей папке (ZH_Generals) или рядом с ней; если они в другом месте, выберите папку ниже.</string>
+    <string name="setup_games_recognised">Выберите папку любой игры: лаунчер узнаёт игру по её файлам и переключается на неё. Также узнаёт, но движка в приложении пока нет: %1$s.</string>
+    <string name="setup_dialog_game_detected_title">В этой папке другая игра</string>
+    <string name="setup_dialog_game_detected_message">В этой папке %1$s, а не %2$s. Переключить лаунчер на %1$s и использовать эту папку для неё?</string>
+    <string name="setup_button_game_switch">Переключить</string>
+    <string name="setup_button_game_keep">Оставить %1$s</string>
+    <string name="setup_dialog_game_no_engine">В этой папке %1$s. Лаунчер её узнаёт, но её движка в приложении пока нет: %2$s.\n\nПапка не сохранена. Сейчас работают Generals и Zero Hour.</string>
+    <string name="setup_engine_note_conquer">в планах, на открытом движке Vanilla Conquer (EA опубликовала исходный код в 2020 году)</string>
+    <string name="setup_engine_note_renegade">в планах, на основе исходного кода, опубликованного EA в 2025 году (то же семейство движка W3D, что и у Generals)</string>
+    <string name="setup_engine_note_no_source">её исходный код никогда не публиковался, поэтому переносить пока нечего</string>
 </resources>

@@ -522,4 +522,14 @@
     <string name="setup_sources_zh_art_missing">The Zero Hour folder has no TexturesZH.big, so Generals cannot borrow its pictures: %1$s</string>
     <string name="setup_sources_base_ok">Original Generals archives for Zero Hour: %1$s</string>
     <string name="setup_sources_base_auto">Zero Hour looks for the original Generals archives inside its folder (ZH_Generals) or next to it; choose a folder below if they are elsewhere.</string>
+    <!-- GeneralsX @feature 11/11/2026 PLAN-031: the launcher recognises a game by its files (GameCatalog). -->
+    <string name="setup_games_recognised">Choose any game folder: the launcher tells the game by its files and switches to it. Also recognised, engine not in the app yet: %1$s.</string>
+    <string name="setup_dialog_game_detected_title">Another game in this folder</string>
+    <string name="setup_dialog_game_detected_message">This folder holds %1$s, not %2$s. Switch the launcher to %1$s and use this folder for it?</string>
+    <string name="setup_button_game_switch">Switch</string>
+    <string name="setup_button_game_keep">Keep %1$s</string>
+    <string name="setup_dialog_game_no_engine">This folder holds %1$s. The launcher recognises it, but its engine is not in the app yet: %2$s.\n\nThe folder was not saved. Generals and Zero Hour run today.</string>
+    <string name="setup_engine_note_conquer">planned, on the open-source Vanilla Conquer engine (EA released the source in 2020)</string>
+    <string name="setup_engine_note_renegade">planned, from the source EA released in 2025 (the same W3D engine family as Generals)</string>
+    <string name="setup_engine_note_no_source">its source has never been released, so there is no engine to port yet</string>
 </resources>

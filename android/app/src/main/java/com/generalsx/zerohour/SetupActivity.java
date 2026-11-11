@@ -97,9 +97,11 @@ public class SetupActivity extends Activity {
     static final String GAME_GENERALS = "generals";
     static final String PREF_GENERALS_GAME_PATH = "game_path_generals";
 
+    // GeneralsX @refactor Android port 11/11/2026 PLAN-031: the games and their engines are listed in
+    // GameCatalog; only a game with an engine in this APK can be the selected one.
     static String getSelectedGame(android.content.Context ctx) {
         String game = ctx.getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(PREF_GAME, GAME_ZERO_HOUR);
-        return GAME_GENERALS.equals(game) ? GAME_GENERALS : GAME_ZERO_HOUR;
+        return GameCatalog.isRunnableId(game) ? game : GAME_ZERO_HOUR;
     }
 
     static boolean isGeneralsSelected(android.content.Context ctx) {
@@ -108,7 +110,7 @@ public class SetupActivity extends Activity {
 
     static void setSelectedGame(android.content.Context ctx, String game) {
         ctx.getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
-            .putString(PREF_GAME, GAME_GENERALS.equals(game) ? GAME_GENERALS : GAME_ZERO_HOUR)
+            .putString(PREF_GAME, GameCatalog.isRunnableId(game) ? game : GAME_ZERO_HOUR)
             .apply();
     }
 
@@ -128,9 +130,7 @@ public class SetupActivity extends Activity {
 
     // The engine library base names (System.loadLibrary) of the selected game: 30 Hz first, 60 Hz second.
     static String[] engineLibraries(android.content.Context ctx) {
-        return isGeneralsSelected(ctx)
-            ? new String[] { "generals", "generals60" }
-            : new String[] { "main", "main60" };
+        return GameCatalog.byId(getSelectedGame(ctx)).engineLibraries.clone();
     }
 
     // GeneralsX @feature Android port 15/09/2026 Simulation tick rate.
@@ -517,6 +517,8 @@ public class SetupActivity extends Activity {
             buildUi();
         });
         UiKit.supporting(game, getString(R.string.setup_game_desc));
+        // GeneralsX @feature Android port 11/11/2026 PLAN-031: the folder decides the game.
+        UiKit.supporting(game, getString(R.string.setup_games_recognised, GameCatalog.plannedNames(this)));
 
         // GeneralsX @feature Android port 05/10/2026 Skip the logos and intro movies (owner's
         // request): the engine's own -nologo, passed by GeneralsZHActivity.getArguments(), for
@@ -4000,40 +4002,7 @@ public class SetupActivity extends Activity {
         if (requestCode == 1001 && resultCode == Activity.RESULT_OK && data != null) {
             String path = data.getStringExtra(FolderPickerActivity.EXTRA_SELECTED_PATH);
             if (path != null) {
-                // GeneralsX @feature Android port 04/10/2026 A common mistake (4PDA report): picking the
-                // folder the archive was unpacked INTO, while the game sits one or two folders down.
-                // If exactly one folder below the pick is a game folder, take that one.
-                if (!isValidGameFolder(new File(path), getSelectedGame(this))) {
-                    File inside = findGameFolderBelow(new File(path), getSelectedGame(this));
-                    if (inside != null) {
-                        path = inside.getAbsolutePath();
-                        Toast.makeText(this, getString(R.string.setup_toast_folder_found_inside, path),
-                            Toast.LENGTH_LONG).show();
-                    }
-                }
-                saveGamePath(path);
-                refreshStatus();
-                File dir = new File(path);
-                boolean valid = isValidGameFolder(dir, getSelectedGame(this));
-                // GeneralsX @feature Android port game-folder-integrity-check
-                // 07/09/2026 - a Toast auto-dismisses in a couple of seconds
-                // and is easy to miss entirely; a real problem here means
-                // the game WILL crash on launch, so it gets a blocking
-                // dialog the user has to acknowledge instead. The colored
-                // status line in refreshStatus() (visible right below) still
-                // covers "I want to re-check the status later" without
-                // re-triggering the dialog every time the screen redraws.
-                if (!valid) {
-                    showFolderProblemDialog(invalidFolderMessage(dir).trim());
-                } else {
-                    java.util.List<String> issues = findGameFolderIntegrityIssues(dir);
-                    if (!issues.isEmpty()) {
-                        showFolderProblemDialog(getString(R.string.setup_status_folder_incomplete,
-                            joinLines(issues)).trim(), m_lastCheckWantedBaseGenerals);
-                    } else {
-                        Toast.makeText(this, R.string.setup_toast_folder_saved, Toast.LENGTH_LONG).show();
-                    }
-                }
+                onGameFolderPicked(path);
             }
         } else if (requestCode == REQUEST_PICK_BASE_GENERALS && resultCode == Activity.RESULT_OK && data != null) {
             String path = data.getStringExtra(FolderPickerActivity.EXTRA_SELECTED_PATH);
@@ -4060,6 +4029,76 @@ public class SetupActivity extends Activity {
             Uri uri = data.getData();
             if (uri != null) {
                 importCustomDriver(uri);
+            }
+        }
+    }
+
+    // GeneralsX @feature Android port 11/11/2026 PLAN-031: the picked folder says which game it is
+    // (GameCatalog). A folder of the other game this launcher runs is offered as that game rather
+    // than rejected or, worse, saved as the wrong one; a folder of a game the launcher recognises but
+    // has no engine for yet is named, with what is planned for it, and not saved.
+    private void onGameFolderPicked(String path) {
+        final String selected = getSelectedGame(this);
+        final GameCatalog.Found found = GameCatalog.find(new File(path));
+        if (found == null || found.game.id.equals(selected)) {
+            saveGameFolder(path);
+            return;
+        }
+        final String foundName = found.game.title(this);
+        if (!found.game.isRunnable()) {
+            showFolderProblemDialog(getString(R.string.setup_dialog_game_no_engine,
+                foundName, found.game.engineNote(this)));
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.setup_dialog_game_detected_title)
+            .setMessage(getString(R.string.setup_dialog_game_detected_message,
+                foundName, GameCatalog.byId(selected).title(this)))
+            .setPositiveButton(R.string.setup_button_game_switch, (d, which) -> {
+                setSelectedGame(this, found.game.id);
+                // The app bar names the game, so rebuild the whole shell rather than only this page.
+                buildUi();
+                saveGameFolder(found.dir.getAbsolutePath());
+            })
+            .setNegativeButton(getString(R.string.setup_button_game_keep,
+                GameCatalog.byId(selected).title(this)), (d, which) -> saveGameFolder(path))
+            .show();
+    }
+
+    // Saves the picked folder for the selected game and reports what is wrong with it, if anything.
+    private void saveGameFolder(String path) {
+        // GeneralsX @feature Android port 04/10/2026 A common mistake (4PDA report): picking the
+        // folder the archive was unpacked INTO, while the game sits one or two folders down.
+        // If exactly one folder below the pick is a game folder, take that one.
+        if (!isValidGameFolder(new File(path), getSelectedGame(this))) {
+            File inside = findGameFolderBelow(new File(path), getSelectedGame(this));
+            if (inside != null) {
+                path = inside.getAbsolutePath();
+                Toast.makeText(this, getString(R.string.setup_toast_folder_found_inside, path),
+                    Toast.LENGTH_LONG).show();
+            }
+        }
+        saveGamePath(path);
+        refreshStatus();
+        File dir = new File(path);
+        boolean valid = isValidGameFolder(dir, getSelectedGame(this));
+        // GeneralsX @feature Android port game-folder-integrity-check
+        // 07/09/2026 - a Toast auto-dismisses in a couple of seconds
+        // and is easy to miss entirely; a real problem here means
+        // the game WILL crash on launch, so it gets a blocking
+        // dialog the user has to acknowledge instead. The colored
+        // status line in refreshStatus() (visible right below) still
+        // covers "I want to re-check the status later" without
+        // re-triggering the dialog every time the screen redraws.
+        if (!valid) {
+            showFolderProblemDialog(invalidFolderMessage(dir).trim());
+        } else {
+            java.util.List<String> issues = findGameFolderIntegrityIssues(dir);
+            if (!issues.isEmpty()) {
+                showFolderProblemDialog(getString(R.string.setup_status_folder_incomplete,
+                    joinLines(issues)).trim(), m_lastCheckWantedBaseGenerals);
+            } else {
+                Toast.makeText(this, R.string.setup_toast_folder_saved, Toast.LENGTH_LONG).show();
             }
         }
     }
